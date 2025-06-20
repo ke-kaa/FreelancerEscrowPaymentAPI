@@ -1,0 +1,57 @@
+# Python
+project_steps.txt
+env/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+env.bak/
+venv.bak/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Django
+*.log
+*.pot
+*.pyc
+migrations/
+*.sqlite3
+*.sqlite3-journal
+media/
+staticfiles/
+*.env
+.env*
+!.env.example
+
+# IDE/Editor
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+*.swp
+*~
+
+# Testing/Coverage
+.coverage
+coverage.xml
+*.cover
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Dependency Management
+pip-log.txt
+Pipfile.lock
+
+# Sensitive Files
+secrets.json
+*.key
+*.pem
+*.crt
+*.cert
+*.pub
