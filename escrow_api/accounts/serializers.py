@@ -2,6 +2,9 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from . import models as my_models
 from django.contrib.auth import authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -82,3 +85,18 @@ class ChangePasswordSerializer(serializers.Serializer):
         instance.save()
 
         return instance
+    
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+    def validate(self, attrs):
+        self.token = attrs['refersh']
+        return attrs
+    
+    def save(self, **kwargs):
+        try:
+            token = RefreshToken(self.refresh)
+            token.blacklist()
+        except TokenError:
+            raise serializers.ValidationError("Token is invalid or expired.")
