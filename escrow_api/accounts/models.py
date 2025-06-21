@@ -15,7 +15,7 @@ class CustomUser(AbstractUser):
     country = models.CharField(max_length=50, choices=countries_for_language)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    email = models.EmailFiel(unique=True)
+    email = models.EmailField(unique=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
