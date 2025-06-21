@@ -40,3 +40,13 @@ class UserProfileRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+    
+
+class ChangePasswordAPIView(generics.UpdateAPIView):
+    serializer_class = my_serializers.ChangePasswordSerializer
+    authentication_classes = [authentication.JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+

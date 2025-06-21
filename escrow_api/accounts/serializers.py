@@ -59,3 +59,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = my_models.CustomUser
         fields = ('id', 'first_name', 'last_name', 'email', 'phone_number', 'user_type', 'country')
         read_only_fields = ('email',)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+
+        if not user.check_password(attrs['old_password']):
+            raise serializers.ValidationError("Incorrect Password.")
+        
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.DjangoValidationError("Passwords do not match.")
+        
+        return attrs
+        
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data['new_password'])
+        instance.save()
+
+        return instance
