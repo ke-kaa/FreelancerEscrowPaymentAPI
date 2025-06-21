@@ -14,7 +14,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         credentials = {
             'email': attrs.get('email'),
-            'passowrd': attrs.get('password')
+            'password': attrs.get('password')
         }
 
         user = authenticate(**credentials)
@@ -28,21 +28,34 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
+    password = serializers.CharField(required=True, write_only=True)
+    confirm_password = serializers.CharField(required=True, write_only=True)
 
     class Meta:
         model = my_models.CustomUser
-        fields = ['user_type', 'phone_number', 'country', 'email', 'passowrd', 'confirm_password']
+        fields = ['first_name', 'last_name', 'user_type', 'phone_number', 'country', 'email', 'password', 'confirm_password']
+        extra_kwargs = {
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+            'email': {'required': True},
+            'country': {'required': True},
+        }
     
     def validate(self, attrs):
-        if attrs['password'] != attrs['confirm_passowrd']:
+        if attrs['password'] != attrs['confirm_password']:
             raise serializers.ValidationError("Password do not match.")
         
         return attrs
     
     def create(self, validated_data):
         validated_data.pop('confirm_password')
-        user = my_models.CustomUser.objects.create(**validated_data)
+        user = my_models.CustomUser.objects.create_user(**validated_data)
 
         return user
+    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = my_models.CustomUser
+        fields = ('id', 'first_name', 'last_name', 'email', 'phone_number', 'user_type', 'country')
+        read_only_fields = ('email',)
