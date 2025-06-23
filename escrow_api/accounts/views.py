@@ -4,12 +4,14 @@ from rest_framework import views as drf_Views, generics, permissions, status
 from django.db import transaction
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 
 from . import serializers as my_serializers
 from .utils import send_reset_email, generate_password_reset_link
 from . import models as my_models
-
+from .pagination import UserListPagination
 
 
 class CustomTokenObtainPairView(jwt_views.TokenObtainPairView):
@@ -70,7 +72,7 @@ class LogoutAPIView(drf_Views.APIView):
         )
     
 
-class PasswordResetRequestView(generics.GenericAPIView):
+class PasswordResetRequestAPIView(generics.GenericAPIView):
     '''
     Accepts POST request with user's email.
     Send an email using send_reset_email function (defined in utils.py)
@@ -95,7 +97,7 @@ class PasswordResetRequestView(generics.GenericAPIView):
         )
 
 
-class PasswordResetConfirmView(generics.GenericAPIView):
+class PasswordResetConfirmAPIView(generics.GenericAPIView):
     '''
     Accepts POST request with uidb65, token, new_password, confirm_password'''
     serializer_class = my_serializers.PasswordResetConfirmSerializer
@@ -109,3 +111,18 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         return Response({
             'success': "Password has been successfully updated."
         }, status=status.HTTP_200_OK)
+    
+
+class UserListAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.UserListSerializer
+    permission_classes = [permissions.IsAdminUser]
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['user_type', 'is_active']
+    search_fields = ['email', 'first_name', 'last_name']
+    ordering_fields = ['id', 'last_name', 'first_name', 'user_type', 'created_at']
+    ordering = ['-last_name', '-first_name']
+    pagination_class = UserListPagination
+
+    def get_queryset(self):
+        return my_models.CustomUser.objects.all()

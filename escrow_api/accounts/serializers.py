@@ -145,3 +145,9 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.save()
 
         return user
+    
+
+class UserListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'email', 'first_name', 'last_name', 'user_type', 'is_active', 'created_at', 'updated_at']
