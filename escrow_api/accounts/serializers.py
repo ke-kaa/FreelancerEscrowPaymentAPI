@@ -1,10 +1,13 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from . import models as my_models
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from django.utils.http import urlsafe_base64_decode
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 
+
+from .models import CustomUser
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -35,7 +38,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(required=True, write_only=True)
 
     class Meta:
-        model = my_models.CustomUser
+        model = CustomUser
         fields = ['first_name', 'last_name', 'user_type', 'phone_number', 'country', 'email', 'password', 'confirm_password']
         extra_kwargs = {
             'first_name': {'required': True},
@@ -52,14 +55,14 @@ class RegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         validated_data.pop('confirm_password')
-        user = my_models.CustomUser.objects.create_user(**validated_data)
+        user = CustomUser.objects.create_user(**validated_data)
 
         return user
     
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
-        model = my_models.CustomUser
+        model = CustomUser
         fields = ('id', 'first_name', 'last_name', 'email', 'phone_number', 'user_type', 'country')
         read_only_fields = ('email',)
 
@@ -100,3 +103,45 @@ class LogoutSerializer(serializers.Serializer):
             token.blacklist()
         except TokenError:
             raise serializers.ValidationError("Token is invalid or expired.")
+        
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            user = CustomUser.objects.get(email=value)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("No account found with this email.")
+        self.context['user'] = user
+        return value
+    
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    new_password = serializers.CharField(required=True, write_only=True)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError("Passwords do not match.")
+        
+        try:
+            uid = urlsafe_base64_decode(attrs['uidb64']).decode()
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            raise serializers.ValidationError("Invalid user.")
+
+        if not PasswordResetTokenGenerator().check_token(user, attrs['token']):
+            raise serializers.ValidationError("Invalid or expired token.")
+    
+        attrs['user'] = user     
+        return attrs
+    
+    def save(self, **kwargs):
+        user = self.validated_data['user']
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+
+        return user
