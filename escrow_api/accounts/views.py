@@ -3,9 +3,13 @@ from rest_framework_simplejwt import views as jwt_views, tokens, authentication
 from rest_framework import views as drf_Views, generics, permissions, status
 from django.db import transaction
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 
 from . import serializers as my_serializers
+from .utils import send_reset_email, generate_password_reset_link
+from . import models as my_models
+
 
 
 class CustomTokenObtainPairView(jwt_views.TokenObtainPairView):
@@ -64,3 +68,44 @@ class LogoutAPIView(drf_Views.APIView):
             {'detail': "Logout successful."},
             status=status.HTTP_200_OK
         )
+    
+
+class PasswordResetRequestView(generics.GenericAPIView):
+    '''
+    Accepts POST request with user's email.
+    Send an email using send_reset_email function (defined in utils.py)
+    send_reset_email sends an email containing uid and token for password reset which are expected
+        by the PasswordResetConfirmView
+    '''
+    serializer_class = my_serializers.PasswordResetRequestSerializer
+    throttle_classes = [AnonRateThrottle,UserRateThrottle]
+    permission_classes=[permissions.AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.context['user']
+
+        reset_url, _ = generate_password_reset_link(user)
+        send_reset_email(user, reset_url)
+
+        return Response(
+            {'detail': "Check your email for a password reset link."},
+            status=status.HTTP_200_OK
+        )
+
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    '''
+    Accepts POST request with uidb65, token, new_password, confirm_password'''
+    serializer_class = my_serializers.PasswordResetConfirmSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({
+            'success': "Password has been successfully updated."
+        }, status=status.HTTP_200_OK)
