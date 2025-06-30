@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin, UserManager
 from country_list import countries_for_language
 
 
@@ -21,6 +21,10 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
+class ActiveUserManager(UserManager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_active=True, deleted_at__isnull=True)
+    
 
 class CustomUser(AbstractUser):
     USER_TYPE_CHOICES = (
@@ -34,12 +38,14 @@ class CustomUser(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     email = models.EmailField(unique=True, blank=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     username = None
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name',]
 
     objects = CustomUserManager()
+    active_objects = ActiveUserManager()
 
     def __str__(self):
         return self.email
