@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils import timezone
 
 
 from .models import CustomUser
@@ -151,3 +152,16 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'user_type', 'is_active', 'created_at', 'updated_at']
+
+
+class UserDeleteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'email', 'is_active', 'deleted_at']
+        read_only_fields = ['id', 'email', 'deleted_at']
+    
+    def update(self, instance, validated_data):
+        instance.deleted_at = timezone.now()
+        instance.is_active = False
+        instance.save()
+        return instance

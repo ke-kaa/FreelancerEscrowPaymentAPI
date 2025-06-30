@@ -75,7 +75,7 @@ class LogoutAPIView(drf_Views.APIView):
 class PasswordResetRequestAPIView(generics.GenericAPIView):
     '''
     Accepts POST request with user's email.
-    Send an email using send_reset_email function (defined in utils.py)
+    Sends an email using send_reset_email function (defined in utils.py)
     send_reset_email sends an email containing uid and token for password reset which are expected
         by the PasswordResetConfirmView
     '''
@@ -126,3 +126,32 @@ class UserListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         return my_models.CustomUser.objects.all()
+    
+
+class UserDeleteAPIView(generics.UpdateAPIView):
+    serializer_class = my_serializers.UserDeleteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [authentication.JWTAuthentication]
+    http_method_names = ['patch']
+
+    def get_object(self):
+        return self.request.user
+    
+    def update(self, request, *args, **kwargs):
+        user = self.get_object()
+
+        try: 
+            refresh_token = request.data.get('refresh_token')
+            if refresh_token:
+                token = tokens.RefreshToken(refresh_token)
+                token.blacklist()
+        except Exception:
+            pass
+        
+        serializer = self.get_serializer(user, data=request.data, patial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({
+            'detail': "Account deleted."
+        }, status=status.HTTP_200_OK)
+
