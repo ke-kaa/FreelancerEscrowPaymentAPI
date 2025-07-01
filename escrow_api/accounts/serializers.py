@@ -95,12 +95,12 @@ class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
     def validate(self, attrs):
-        self.token = attrs['refersh']
+        self.token = attrs['refresh']
         return attrs
     
     def save(self, **kwargs):
         try:
-            token = RefreshToken(self.refresh)
+            token = RefreshToken(self.token)
             token.blacklist()
         except TokenError:
             raise serializers.ValidationError("Token is invalid or expired.")
@@ -129,7 +129,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
             raise serializers.ValidationError("Passwords do not match.")
         
         try:
-            uid = urlsafe_base64_decode(attrs['uidb64']).decode()
+            uid = urlsafe_base64_decode(attrs['uid']).decode()
             user = CustomUser.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
             raise serializers.ValidationError("Invalid user.")

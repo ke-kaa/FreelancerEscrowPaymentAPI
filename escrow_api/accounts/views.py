@@ -49,13 +49,20 @@ class UserProfileRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
         return self.request.user
     
 
-class ChangePasswordAPIView(generics.UpdateAPIView):
+class ChangePasswordAPIView(drf_Views.APIView):
     serializer_class = my_serializers.ChangePasswordSerializer
     authentication_classes = [authentication.JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        return self.request.user
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        if serializer.is_valid(raise_exception=True):
+            serializer.update(request.user, serializer.validated_data)
+            return Response({
+                'detail': "Password updated successfully"
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class LogoutAPIView(drf_Views.APIView):
@@ -148,7 +155,7 @@ class UserDeleteAPIView(generics.UpdateAPIView):
         except Exception:
             pass
         
-        serializer = self.get_serializer(user, data=request.data, patial=True)
+        serializer = self.get_serializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response({
