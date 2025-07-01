@@ -13,8 +13,8 @@ urlpatterns = [
     path('api/users/me/', my_views.UserProfileRetrieveUpdateAPIView.as_view(), name='profile-retrieve-update'),
     path('api/users/change-password/', my_views.ChangePasswordAPIView.as_view(), name='change-password'),
     path('api/token/blacklist/', my_views.LogoutAPIView.as_view(), name='logout'),
-    path('api/users/reset-password/', my_views.PasswordResetRequestView.as_view(), name='password-reset-request'),
-    path('api/users/reset-password/confirm/', my_views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('api/users/reset-password/', my_views.PasswordResetRequestAPIView.as_view(), name='password-reset-request'),
+    path('api/users/reset-password/confirm/', my_views.PasswordResetConfirmAPIView.as_view(), name='password-reset-confirm'),
     path('api/admin/users/', my_views.UserListAPIView.as_view(), name='list-user'),
     path('api/users/me/deactivate/', my_views.UserDeleteAPIView.as_view(), name='deactivate-account'),
 ]
