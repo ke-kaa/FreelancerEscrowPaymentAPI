@@ -9,8 +9,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 
 
 from . import serializers as my_serializers
-from .utils import send_reset_email, generate_password_reset_link
-from . import models as my_models
+from .utils import send_reset_email, generate_password_reset_link, send_reactivation_email, generate_reactivation_link
+from . import models as my_models, throttles
 from .pagination import UserListPagination
 
 
@@ -62,7 +62,6 @@ class ChangePasswordAPIView(drf_Views.APIView):
                 'detail': "Password updated successfully"
             }, status=status.HTTP_200_OK)
         return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class LogoutAPIView(drf_Views.APIView):
@@ -161,4 +160,24 @@ class UserDeleteAPIView(generics.UpdateAPIView):
         return Response({
             'detail': "Account deleted."
         }, status=status.HTTP_200_OK)
+
+
+class ReactivationRequestAPIView(generics.GenericAPIView):
+    serializer_class = my_serializers.ReactivationRequestSerializer
+    permission_classes = []
+    throttle_classes = [throttles.EmailRateThrottle, AnonRateThrottle]
+
+    def post(self, request):
+        seriailzer = self.get_serializer(data=request.data)
+        seriailzer.is_valid(raise_exception=True)
+        user = seriailzer.context['user']
+
+        link, _, _ = generate_reactivation_link(user)
+        send_reactivation_email(user, link)
+
+        return Response({
+            'detail': "Check your email to reactivate your account."
+        }, status=status.HTTP_200_OK)
+        
+
 

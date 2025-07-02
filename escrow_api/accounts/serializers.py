@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils import timezone
 
@@ -165,3 +166,22 @@ class UserDeleteSerializer(serializers.ModelSerializer):
         instance.is_active = False
         instance.save()
         return instance
+    
+
+class ReactivationRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            user = CustomUser.objects.filter(email=value)
+        except:
+            raise serializers.ValidationError("No user found with this email.")
+        
+        if user.is_active or not user.deleted_at:
+            raise serializers.ValidationError("This account is not deactivated.")
+        
+        self.context['user'] = user
+
+        return value
+    
+
