@@ -185,3 +185,30 @@ class ReactivationRequestSerializer(serializers.Serializer):
         return value
     
 
+class AccountReactivationConfrimSerailizer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+    def validate(self, attrs):
+        try:
+            uid = force_str(urlsafe_base64_decode(attrs['uid']))
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            raise serializers.ValidationError("Invalid reactivation link.")
+        
+        token = attrs.get('token')
+        if not PasswordResetTokenGenerator().check_token(user, token):
+            raise serializers.ValidationError("Invalid or expired token.")
+        
+        if user.is_active or user.deleted_at is None:
+            raise serializers.ValidationError("This account is already active.")
+        
+        self.context['user'] = user
+        return attrs
+    
+    def save(self):
+        user = self.context['user']
+        user.is_active = True
+        user.deleted_at = None
+        user.save()
+        return user

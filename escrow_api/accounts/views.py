@@ -181,3 +181,21 @@ class ReactivationRequestAPIView(generics.GenericAPIView):
         
 
 
+class AccountReactivationConfirmAPIView(generics.GenericAPIView):
+    serializer_class = my_serializers.AccountReactivationConfrimSerailizer
+    permission_classes = []
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        refresh_token = tokens.RefreshToken.for_user(user)
+
+        return Response({
+            'detail': "Account successfully reactivated.",
+            'access': str(refresh_token.access_token),
+            'refresh': str(refresh_token),
+            'user': my_serializers.UserProfileSerializer(user).data
+        }, status=status.HTTP_200_OK)
+    
