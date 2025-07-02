@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin, UserManager
 from country_list import countries_for_language
+from auditlog.registry import auditlog
+from auditlog.models import AuditlogHistoryField
 
 
 class CustomUserManager(BaseUserManager):
@@ -47,5 +49,10 @@ class CustomUser(AbstractUser):
     objects = CustomUserManager()
     active_objects = ActiveUserManager()
 
+    history = AuditlogHistoryField()
+
     def __str__(self):
         return self.email
+    
+
+auditlog.register(CustomUser, exclude_fields=[])
