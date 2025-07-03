@@ -12,6 +12,7 @@ from . import serializers as my_serializers
 from .utils import send_reset_email, generate_password_reset_link, send_reactivation_email, generate_reactivation_link
 from . import models as my_models, throttles
 from .pagination import UserListPagination
+from . import permissions as my_permissions
 
 
 class CustomTokenObtainPairView(jwt_views.TokenObtainPairView):
@@ -164,7 +165,7 @@ class UserDeleteAPIView(generics.UpdateAPIView):
 
 class ReactivationRequestAPIView(generics.GenericAPIView):
     serializer_class = my_serializers.ReactivationRequestSerializer
-    permission_classes = []
+    permission_classes = [my_permissions.CanReactivate]
     throttle_classes = [throttles.EmailRateThrottle, AnonRateThrottle]
 
     def post(self, request):
@@ -179,7 +180,6 @@ class ReactivationRequestAPIView(generics.GenericAPIView):
             'detail': "Check your email to reactivate your account."
         }, status=status.HTTP_200_OK)
         
-
 
 class AccountReactivationConfirmAPIView(generics.GenericAPIView):
     serializer_class = my_serializers.AccountReactivationConfrimSerailizer
@@ -199,3 +199,4 @@ class AccountReactivationConfirmAPIView(generics.GenericAPIView):
             'user': my_serializers.UserProfileSerializer(user).data
         }, status=status.HTTP_200_OK)
     
+
