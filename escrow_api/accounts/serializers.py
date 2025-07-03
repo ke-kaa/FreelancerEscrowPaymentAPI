@@ -7,6 +7,7 @@ from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils import timezone
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 
 from .models import CustomUser
@@ -23,7 +24,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         credentials = {
             'email': attrs.get('email'),
             'password': attrs.get('password')
-        }
+        } 
+
+        try:
+            user = CustomUser.objects.filter(email=attrs.get('email')).first()
+            if not user.is_active:
+                raise AuthenticationFailed("Your account is deactivated. Reactivate to log in.")
+        except:
+            raise serializers.ValidationError("Invalid credentials")
 
         user = authenticate(**credentials)
 
