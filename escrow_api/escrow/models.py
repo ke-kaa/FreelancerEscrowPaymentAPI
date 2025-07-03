@@ -1,7 +1,7 @@
 from django.db import models
 
 
-from UserProjects.models import UserProject
+from user_projects.models import UserProject
 
 # Create your models here.
 class EscrowTransaction(models.Model):
