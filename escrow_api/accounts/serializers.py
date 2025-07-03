@@ -152,7 +152,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'first_name', 'last_name', 'user_type', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'email', 'first_name', 'last_name', 'user_type', 'is_active', 'created_at', 'updated_at', 'deleted_at']
 
 
 class UserDeleteSerializer(serializers.ModelSerializer):
@@ -173,7 +173,7 @@ class ReactivationRequestSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         try:
-            user = CustomUser.objects.filter(email=value)
+            user = CustomUser.objects.filter(email=value).first()
         except:
             raise serializers.ValidationError("No user found with this email.")
         
