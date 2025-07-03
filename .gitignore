@@ -1,5 +1,4 @@
 # Python
-project_steps.txt
 env/
 *.pyc
 __pycache__/
@@ -55,3 +54,7 @@ secrets.json
 *.crt
 *.cert
 *.pub
+
+# Unnecessary files:
+project_steps.txt
+to_add.txt
