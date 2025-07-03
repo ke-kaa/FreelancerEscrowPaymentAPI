@@ -17,4 +17,6 @@ urlpatterns = [
     path('api/users/reset-password/confirm/', my_views.PasswordResetConfirmAPIView.as_view(), name='password-reset-confirm'),
     path('api/admin/users/', my_views.UserListAPIView.as_view(), name='list-user'),
     path('api/users/me/deactivate/', my_views.UserDeleteAPIView.as_view(), name='deactivate-account'),
+    path('api/reactivate/request/', my_views.ReactivationRequestAPIView.as_view(), name='account-reactivate-request'),
+    path('api/reactivate/confirm/', my_views.AccountReactivationConfirmAPIView.as_view(), name='account-reactivate-confirm'),
 ]
