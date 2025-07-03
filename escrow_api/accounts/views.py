@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
+from drf_yasg.utils import swagger_auto_schema
 
 
 from . import serializers as my_serializers
@@ -50,6 +51,7 @@ class UserProfileRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
         return self.request.user
     
 
+swagger_auto_schema(method="post", request_body=my_serializers.ChangePasswordSerializer)
 class ChangePasswordAPIView(drf_Views.APIView):
     serializer_class = my_serializers.ChangePasswordSerializer
     authentication_classes = [authentication.JWTAuthentication]
@@ -65,6 +67,7 @@ class ChangePasswordAPIView(drf_Views.APIView):
         return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
 
 
+swagger_auto_schema(method="post", request_body=my_serializers.LogoutSerializer)
 class LogoutAPIView(drf_Views.APIView):
     permission_classes = [permissions.IsAuthenticated]
     
@@ -79,6 +82,7 @@ class LogoutAPIView(drf_Views.APIView):
         )
     
 
+swagger_auto_schema(method="post", request_body=my_serializers.PasswordResetRequestSerializer)
 class PasswordResetRequestAPIView(generics.GenericAPIView):
     '''
     Accepts POST request with user's email.
@@ -104,6 +108,7 @@ class PasswordResetRequestAPIView(generics.GenericAPIView):
         )
 
 
+swagger_auto_schema(method="post", request_body=my_serializers.PasswordResetConfirmSerializer)
 class PasswordResetConfirmAPIView(generics.GenericAPIView):
     '''
     Accepts POST request with uidb65, token, new_password, confirm_password'''
@@ -162,7 +167,7 @@ class UserDeleteAPIView(generics.UpdateAPIView):
             'detail': "Account deleted."
         }, status=status.HTTP_200_OK)
 
-
+swagger_auto_schema(method="post", request_body=my_serializers.ReactivationRequestSerializer)
 class ReactivationRequestAPIView(generics.GenericAPIView):
     serializer_class = my_serializers.ReactivationRequestSerializer
     permission_classes = [my_permissions.CanReactivate]
@@ -181,6 +186,7 @@ class ReactivationRequestAPIView(generics.GenericAPIView):
         }, status=status.HTTP_200_OK)
         
 
+swagger_auto_schema(method="post", request_body=my_serializers.AccountReactivationConfrimSerailizer)
 class AccountReactivationConfirmAPIView(generics.GenericAPIView):
     serializer_class = my_serializers.AccountReactivationConfrimSerailizer
     permission_classes = []
