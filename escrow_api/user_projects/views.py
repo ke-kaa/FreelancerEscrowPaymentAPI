@@ -3,8 +3,7 @@ from rest_framework import views as drf_views, generics, permissions, status
 from rest_framework.response import Response
 
 
-from . import serializers as my_serializers
-from . import permissions as my_permissions
+from . import serializers as my_serializers, permissions as my_permissions, models as my_models
 
 
 class CreateProjectAPIView(generics.CreateAPIView):
@@ -22,5 +21,7 @@ class CreateProjectAPIView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
     
 
-
-    
+class ListProjectAdminAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectSerializer
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]    
+    queryset = my_models.UserProject.objects.all()

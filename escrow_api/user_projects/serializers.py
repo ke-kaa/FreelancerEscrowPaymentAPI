@@ -22,3 +22,9 @@ class CreateProjectSerializer(serializers.ModelSerializer):
             client=user, 
             **validated_data
         )
+
+
+class ListProjectAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = my_models.UserProject
+        fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'status', 'commission_rate', 'created_at', 'updated_at']
