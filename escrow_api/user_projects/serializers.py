@@ -1,7 +1,11 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 
 
 from . import models as my_models
+
+
+User = get_user_model()
 
 
 class CreateProjectSerializer(serializers.ModelSerializer):
@@ -86,3 +90,16 @@ class CreateProposalSerializer(serializers.ModelSerializer):
 
         if my_models.Proposal.objects.filter(project=project, freelancer=request.user).exists():
             raise serializers.ValidationError("You have already submitted a proposal for this project.")
+
+class UserSeriailzer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'phone_number']
+
+
+class ListProjectProposalClientSerializer(serializers.ModelSerializer):
+    freelancer = UserSeriailzer(read_only=True)
+
+    class Meta:
+        model = my_models.Proposal
+        fields = ['freelancer', 'bid_amount', 'submitted_at', 'status', 'estimated_delivery_days', 'is_withdrawn']

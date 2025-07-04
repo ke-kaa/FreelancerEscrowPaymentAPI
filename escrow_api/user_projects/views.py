@@ -1,8 +1,9 @@
 from django.shortcuts import render
-from rest_framework import views as drf_views, generics, permissions, status
+from rest_framework import views as drf_views, generics, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework_simplejwt import authentication
 from django.shortcuts import get_object_or_404
+
 
 from . import serializers as my_serializers, permissions as my_permissions, models as my_models
 
@@ -76,3 +77,20 @@ class CreateProposalAPIView(generics.CreateAPIView):
         return Response({
             'detail': "Proposal submitted successfully."
         }, status=status.HTTP_201_CREATED)
+
+
+class ListProjectProposalClientAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectProposalSerializer
+    permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient]
+    authentication_classes = [authentication.JWTAuthentication]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['submitted_at']
+    ordering = ['-submitted_at']
+
+    def get_project(self):
+        return get_object_or_404(my_models.UserProject, id=self.kwargs['project_id'], client=self.request.user)
+    
+    def get_queryset(self):
+        project = self.get_project()
+        return my_models.Proposal.objects.filter(project=project, is_withdrawn=False)
+        
