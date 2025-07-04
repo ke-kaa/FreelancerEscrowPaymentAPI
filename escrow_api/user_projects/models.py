@@ -34,6 +34,11 @@ class Proposal(models.Model):
     bid_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=[("pending", "Pending"), ("accepted", "Accepted"), ("rejected", "Rejected")], default="pending")
     submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    client_note = models.TextField(blank=True, null=True)
+    estimated_delivery_days = models.PositiveIntegerField()
+    is_seen_by_client = models.BooleanField(default=False)
+    is_widthdrawn = models.BooleanField(default=False)
 
 
 class Milestone(models.Model):
