@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import views as drf_views, generics, permissions, status
 from rest_framework.response import Response
-
+from django.shortcuts import get_object_or_404
 
 from . import serializers as my_serializers, permissions as my_permissions, models as my_models
 
@@ -22,13 +22,13 @@ class CreateProjectAPIView(generics.CreateAPIView):
     
 
 class ListProjectAdminAPIView(generics.ListAPIView):
-    serializer_class = my_serializers.ListProjectSerializer
+    serializer_class = my_serializers.ListProjectAdminSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]    
     queryset = my_models.UserProject.objects.all()
 
 
 class ListProjectClientAPIView(generics.ListAPIView):
-    serializer_class = my_serializers.ListProjectClientSeriailzer
+    serializer_class = my_serializers.ListProjectClientSerializer
     permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient]
     
     def get_queryset(self):
@@ -41,3 +41,12 @@ class ListProjectFreelancerAPIView(generics.ListAPIView):
     
     def get_queryset(self):
         return my_models.UserProject.objects.filter(is_public=True)
+    
+
+class RetrieveUpdateDeleteProjectClientAPIView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = my_serializers.RetrieveUpdateDeleteProjectClientSeriailzer
+    permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient, my_permissions.IsOwner]
+    lookup_field = 'id'
+
+    def get_object(self):
+        return get_object_or_404(my_models.UserProject, id=self.kwargs['id'], client=self.request.user)

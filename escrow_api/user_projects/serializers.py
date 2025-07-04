@@ -30,14 +30,38 @@ class ListProjectAdminSerializer(serializers.ModelSerializer):
         fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'status', 'commission_rate', 'created_at', 'updated_at']
     
 
-class ListProjectClientSeriailzer(serializers.ModelSerializer):
+class ListProjectClientSerializer(serializers.ModelSerializer):
     class Meta: 
         model = my_models.UserProject
-        fields = ['client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
+        fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
 
     
 class ListProjectFreelancerSerializer(serializers.ModelSerializer):
     class Meta: 
         model = my_models.UserProject
-        fields = ['client', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at']
+        fields = ['id', 'client', 'title', 'freelancer', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at']
 
+
+
+class RetrieveUpdateDeleteProjectClientSeriailzer(serializers.ModelSerializer):
+    client = serializers.SerializerMethodField()
+    freelancer = serializers.SerializerMethodField()
+
+    def get_client(self, obj):
+        return {
+            'name': obj.client.get_full_name(),
+            'email': obj.client.email
+        }
+    
+    def get_freelancer(self, obj):
+        if obj.freelancer:
+            return {
+                'name': obj.freelancer.get_full_name(),
+                'email': obj.freelancer.email
+            }
+        return None
+        
+    class Meta:
+        model = my_models.UserProject
+        fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
+        read_only_fields = ('id', 'freelancer', 'commission_rate', 'status', 'updated_at', )
