@@ -25,3 +25,11 @@ class ListProjectAdminAPIView(generics.ListAPIView):
     serializer_class = my_serializers.ListProjectSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]    
     queryset = my_models.UserProject.objects.all()
+
+
+class ListProjectClientAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectClientSeriailzer
+    permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient]
+    
+    def get_queryset(self):
+        return my_models.UserProject.objects.filter(client=self.request.user)
