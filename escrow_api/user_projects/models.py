@@ -1,6 +1,7 @@
 from django.db import models
+from django.contrib.auth import get_user_model
 
-from accounts.models import CustomUser
+User = get_user_model()
 
 class UserProject(models.Model):
     STATUS_CHOICES = (
@@ -9,10 +10,10 @@ class UserProject(models.Model):
             ('completed', 'Completed'),
             ('disputed', 'Disputed'),       
             ('cancelled', 'Cancelled'),
-            )
+        )
 
-    client = models.ForeignKey(CustomUser, related_name='client_projects', on_delete=models.PROTECT)
-    freelancer = models.ForeignKey(CustomUser, related_name='freelancer_projects', on_delete=models.PROTECT)
+    client = models.ForeignKey(User, related_name='client_projects', on_delete=models.PROTECT)
+    freelancer = models.ForeignKey(User, related_name='freelancer_projects', on_delete=models.PROTECT, null=True, blank=True)
     title = models.CharField(max_length=255)
     description = models.TextField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -23,3 +24,30 @@ class UserProject(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.client} -> {self.freelancer})"
+
+
+class Proposal(models.Model):
+    project = models.ForeignKey(UserProject, on_delete=models.PROTECT, related_name="proposals")
+    freelancer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="proposals")
+    cover_letter = models.TextField()
+    bid_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=[("pending", "Pending"), ("accepted", "Accepted"), ("rejected", "Rejected")], default="pending")
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+
+class Milestone(models.Model):
+    project = models.ForeignKey(UserProject, on_delete=models.PROTECT, related_name="milestones")
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=[("pending", "Pending"), ("submitted", "Submitted"), ("approved", "Approved"), ("rejected", "Rejected")], default="pending")
+    due_date = models.DateField(null=True, blank=True)
+
+
+class Review(models.Model):
+    project = models.ForeignKey(UserProject, on_delete=models.CASCADE, related_name="reviews")
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="given_reviews")
+    reviewee = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_reviews")
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
