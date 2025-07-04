@@ -33,3 +33,11 @@ class ListProjectClientAPIView(generics.ListAPIView):
     
     def get_queryset(self):
         return my_models.UserProject.objects.filter(client=self.request.user)
+
+
+class ListProjectFreelancerAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectFreelancerSerializer
+    permission_classes = [permissions.IsAuthenticated, my_permissions.IsFreelancer]
+    
+    def get_queryset(self):
+        return my_models.UserProject.objects.filter(is_public=True)

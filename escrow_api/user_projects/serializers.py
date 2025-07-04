@@ -33,4 +33,11 @@ class ListProjectAdminSerializer(serializers.ModelSerializer):
 class ListProjectClientSeriailzer(serializers.ModelSerializer):
     class Meta: 
         model = my_models.UserProject
-        fields = ['client', 'freelancer', 'title', 'descrtiption', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
+        fields = ['client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
+
+    
+class ListProjectFreelancerSerializer(serializers.ModelSerializer):
+    class Meta: 
+        model = my_models.UserProject
+        fields = ['client', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at']
+
