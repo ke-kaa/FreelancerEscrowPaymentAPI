@@ -59,6 +59,14 @@ class RetrieveUpdateDeleteProjectClientAPIView(generics.RetrieveUpdateDestroyAPI
         return get_object_or_404(my_models.UserProject, id=self.kwargs['id'], client=self.request.user)
 
 
+class RetrieveProjectFreelancerAPIView(generics.RetrieveAPIView):
+    serializer_class = my_serializers.RetrieveProjectFreelancerSerializer
+    permission_classes = [permissions.IsAuthenticated, my_permissions.IsFreelancer]
+    authentication_classes = [authentication.JWTAuthentication]
+    queryset = my_models.UserProject.objects.filter(is_public=True)
+    lookup_field = 'id'
+
+
 class CreateProposalAPIView(generics.CreateAPIView):
     serializer_class = my_serializers.CreateProposalSerializer
     permission_classes = [my_permissions.IsFreelancer, permissions.IsAuthenticated]

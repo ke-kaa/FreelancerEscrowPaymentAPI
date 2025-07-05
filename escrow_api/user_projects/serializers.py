@@ -8,6 +8,18 @@ from . import models as my_models
 User = get_user_model()
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'phone_number']
+
+
+class ProposalSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = my_models.Proposal
+        fields = ['id', 'big_ammount', 'cover_letter', 'status', 'submitted_at', 'estimated_delivery_days', 'is_withdrawn']
+
+
 class CreateProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = my_models.UserProject
@@ -46,7 +58,7 @@ class ListProjectFreelancerSerializer(serializers.ModelSerializer):
         fields = ['id', 'client', 'title', 'freelancer', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at']
 
 
-class RetrieveUpdateDeleteProjectClientSeriailzer(serializers.ModelSerializer):
+class RetrieveUpdateDeleteProjectClientSerializer(serializers.ModelSerializer):
     client = serializers.SerializerMethodField()
     freelancer = serializers.SerializerMethodField()
 
@@ -70,6 +82,22 @@ class RetrieveUpdateDeleteProjectClientSeriailzer(serializers.ModelSerializer):
         read_only_fields = ('id', 'freelancer', 'commission_rate', 'status', 'updated_at', )
 
 
+class RetrieveProjectFreelancerSerializer(serializers.ModelSerializer):
+    client = UserSerializer(read_only=True)
+    proposal = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = my_models.UserProject
+        fields = ['client', 'title', 'description', 'amount', 'status', 'created_at', 'updated_at']
+
+    def get_proposal(self, obj):
+        user = self.context['request'].user
+        proposal = obj.proposals.filter(freelancer=user)
+
+        if proposal:
+            return ProposalSummarySerializer(proposal).data
+        return None
+
 class CreateProposalSerializer(serializers.ModelSerializer):
     class Meta:
         model = my_models.Proposal
@@ -91,14 +119,9 @@ class CreateProposalSerializer(serializers.ModelSerializer):
         if my_models.Proposal.objects.filter(project=project, freelancer=request.user).exists():
             raise serializers.ValidationError("You have already submitted a proposal for this project.")
 
-class UserSeriailzer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['first_name', 'last_name', 'email', 'phone_number']
-
 
 class ListProjectProposalClientSerializer(serializers.ModelSerializer):
-    freelancer = UserSeriailzer(read_only=True)
+    freelancer = UserSerializer(read_only=True)
 
     class Meta:
         model = my_models.Proposal
