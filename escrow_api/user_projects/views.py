@@ -204,3 +204,28 @@ class ListProposalFreelancerAPIView(generics.ListAPIView):
     def get_queryset(self):
         return my_models.Proposal.objects.filter(freelancer=self.request.user)
 
+
+class RetrieveUpdateProposalFreelancerAPIView(generics.RetrieveUpdateAPIView):
+    serializer_class = my_serializers.RetrieveUpdateProposalFreelancerSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsFreelancer, IsAuthenticated, IsOwner]
+    queryset = my_models.Proposal.objects.all()
+    lookup_field = 'id'
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.freelancer != self.request.user:
+            raise PermissionDenied("You do not have permission to view this proposal.")
+
+        return obj
+    
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response({
+            'detail': "Proposal successfully updated.",
+            'proposal': serializer.data
+        }, status=status.HTTP_200_OK)

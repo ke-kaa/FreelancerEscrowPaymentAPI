@@ -205,3 +205,32 @@ class ListProposalsFreelancerSerializer(serializers.ModelSerializer):
         fields = ['id', 'project', 'cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn']
 
 
+class RetrieveUpdateProposalFreelancerSerializer(serializers.ModelSerializer):
+    project = ProjectSummarySerializer(read_only=True)
+
+    class Meta:
+        model = my_models.Proposal
+        fields = [
+            'id', 'project', 'cover_letter', 'bid_amount', 'status', 'submitted_at',
+            'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn',
+            'client_note', 'accepted_at'
+        ]
+        read_only_fields = (
+            'id', 'status', 'submitted_at', 'updated_at', 'is_seen_by_client',
+            'is_withdrawn', 'client_note', 'accepted_at'
+        )
+    
+    def validate(self, attrs):
+        if attrs.get('bid_amount', 0) < 0:
+            raise serializers.ValidationError("Please enter acceptable bid amount.")
+        if attrs.get('estimated_delivery_days', 0) < 0:
+            raise serializers.ValidationError("Please enter valid delivery days.")
+        
+        return attrs
+    
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
