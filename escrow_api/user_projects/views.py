@@ -126,3 +126,9 @@ class RetrieveUpdateProposalClientAPIView(generics.RetrieveUpdateAPIView):
         if proposal.project.client != self.request.user:
             raise PermissionDenied("You do not have permission to view this proposal.")
         return proposal
+    
+    def partial_update(self, request, *args, **kwargs):
+        proposal = self.get_object()
+        proposal.is_seen_by_client = True
+        proposal.save(updated_fields=['is_seen_by_client'])
+        return super().partial_update(request, *args, **kwargs)
