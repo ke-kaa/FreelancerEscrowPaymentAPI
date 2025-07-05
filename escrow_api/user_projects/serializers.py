@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+from .utils import send_proposal_accept_email
 
 
 from . import models as my_models
@@ -145,3 +147,29 @@ class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
         model = my_models.Proposal
         fields = ['freelancer', 'cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'client_note', 'estimated_delivery_days', 'is_withdrawn']
         read_only_fields = ('cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_withdrawn')
+
+
+class AcceptProposalClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = my_models.Proposal
+        fields = ['status']
+        read_only_fields = ('status',)
+    
+    def update(self, instance, validated_data):
+        if instance.project.proposals.filter(status='accepted').exists():
+            raise serializers.ValidationError("A proposal has already been accpeted for this Project.")
+        
+        instance.status = 'accepted'
+        instance.accepted_at = timezone.now()
+        instance.save(update_fields=['status', 'accepted_at'])
+
+        project = instance.project
+        project.freelancer = instance.freelancer
+        project.status = 'active'
+        project.save(update_fields=['freelancer', 'status'])
+        
+        send_proposal_accept_email(instance.freelancer, instance)
+        
+        return instance
+    
+
