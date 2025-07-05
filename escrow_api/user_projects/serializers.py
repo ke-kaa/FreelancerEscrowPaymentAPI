@@ -11,7 +11,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'phone_number']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number']
 
 
 class ProposalSummarySerializer(serializers.ModelSerializer):
@@ -97,6 +97,16 @@ class RetrieveProjectFreelancerSerializer(serializers.ModelSerializer):
         if proposal:
             return ProposalSummarySerializer(proposal).data
         return None
+
+
+class RetrieveProjectAdminSeriailzer(serializers.ModelSerializer):
+    client = UserSerializer(read_only=True)
+    freelancer = UserSerializer(read_only=True)
+
+    class Meta:
+        model = my_models.UserProject
+        fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'comission_rate', 'status', 'created_at', 'updated_at', 'is_public']
+
 
 class CreateProposalSerializer(serializers.ModelSerializer):
     class Meta:

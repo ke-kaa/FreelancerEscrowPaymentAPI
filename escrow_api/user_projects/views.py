@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import views as drf_views, generics, permissions, status, filters
 from rest_framework.response import Response
-from rest_framework_simplejwt import authentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
 
 
@@ -11,7 +11,7 @@ from . import serializers as my_serializers, permissions as my_permissions, mode
 class CreateProjectAPIView(generics.CreateAPIView):
     serializer_class = my_serializers.CreateProjectSerializer
     permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient]
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, context={'request': request})
@@ -27,14 +27,14 @@ class CreateProjectAPIView(generics.CreateAPIView):
 class ListProjectAdminAPIView(generics.ListAPIView):
     serializer_class = my_serializers.ListProjectAdminSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]    
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     queryset = my_models.UserProject.objects.all()
 
 
 class ListProjectClientAPIView(generics.ListAPIView):
     serializer_class = my_serializers.ListProjectClientSerializer
     permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient]
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
 
     def get_queryset(self):
         return my_models.UserProject.objects.filter(client=self.request.user)
@@ -43,7 +43,7 @@ class ListProjectClientAPIView(generics.ListAPIView):
 class ListProjectFreelancerAPIView(generics.ListAPIView):
     serializer_class = my_serializers.ListProjectFreelancerSerializer
     permission_classes = [permissions.IsAuthenticated, my_permissions.IsFreelancer]
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     
     def get_queryset(self):
         return my_models.UserProject.objects.filter(is_public=True).filter(freelancer__isnull=True)
@@ -52,7 +52,7 @@ class ListProjectFreelancerAPIView(generics.ListAPIView):
 class RetrieveUpdateDeleteProjectClientAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = my_serializers.RetrieveUpdateDeleteProjectClientSeriailzer
     permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient, my_permissions.IsOwner]
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     lookup_field = 'id'
 
     def get_object(self):
@@ -62,15 +62,23 @@ class RetrieveUpdateDeleteProjectClientAPIView(generics.RetrieveUpdateDestroyAPI
 class RetrieveProjectFreelancerAPIView(generics.RetrieveAPIView):
     serializer_class = my_serializers.RetrieveProjectFreelancerSerializer
     permission_classes = [permissions.IsAuthenticated, my_permissions.IsFreelancer]
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     queryset = my_models.UserProject.objects.filter(is_public=True)
+    lookup_field = 'id'
+
+
+class RetrieveProjectAdminAPIView(generics.RetrieveAPIView):
+    serializer_class = my_serializers.RetrieveProjectAdminSerializer
+    permission_classes = [permissions.IsAdminUser, permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    queryset = my_models.UserProject.objects.all()
     lookup_field = 'id'
 
 
 class CreateProposalAPIView(generics.CreateAPIView):
     serializer_class = my_serializers.CreateProposalSerializer
     permission_classes = [my_permissions.IsFreelancer, permissions.IsAuthenticated]
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
 
     def get_poject(self):
         return get_object_or_404(my_models.Proposal, id=self.kwargs['project_id'])
@@ -90,7 +98,7 @@ class CreateProposalAPIView(generics.CreateAPIView):
 class ListProjectProposalClientAPIView(generics.ListAPIView):
     serializer_class = my_serializers.ListProjectProposalSerializer
     permission_classes = [permissions.IsAuthenticated, my_permissions.IsClient]
-    authentication_classes = [authentication.JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['submitted_at']
     ordering = ['-submitted_at']
@@ -101,4 +109,3 @@ class ListProjectProposalClientAPIView(generics.ListAPIView):
     def get_queryset(self):
         project = self.get_project()
         return my_models.Proposal.objects.filter(project=project, is_withdrawn=False)
-        
