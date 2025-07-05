@@ -136,3 +136,12 @@ class ListProjectProposalClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = my_models.Proposal
         fields = ['freelancer', 'bid_amount', 'submitted_at', 'status', 'estimated_delivery_days', 'is_withdrawn']
+
+
+class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
+    freelancer = UserSerializer(read_only=True)
+
+    class Meta:
+        model = my_models.Proposal
+        fields = ['freelancer', 'cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'client_note', 'estimated_delivery_days', 'is_withdrawn']
+        read_only_fields = ('cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_withdrawn')
