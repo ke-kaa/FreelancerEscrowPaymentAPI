@@ -23,6 +23,12 @@ class ProposalSummarySerializer(serializers.ModelSerializer):
         fields = ['id', 'big_ammount', 'cover_letter', 'status', 'submitted_at', 'estimated_delivery_days', 'is_withdrawn']
 
 
+class ProjectSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = my_models.UserProject
+        fields = ['id', 'title', 'description', 'amount', 'created_at', 'status']
+
+
 class CreateProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = my_models.UserProject
@@ -190,4 +196,12 @@ class RejectProposalClientSerializer(serializers.ModelSerializer):
         instance.save(update_fields=['status'])
         return instance
     
+
+class ListProposalsFreelancerSerializer(serializers.ModelSerializer):
+    project = ProjectSummarySerializer(read_only=True)
+
+    class Meta:
+        model = my_models.Proposal
+        fields = ['id', 'project', 'cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn']
+
 

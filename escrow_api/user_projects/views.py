@@ -5,6 +5,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import PermissionDenied
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 
 from . import serializers as my_serializers, models as my_models
@@ -190,3 +191,16 @@ class RejectProposalClientAPIView(generics.UpdateAPIView):
             'project': instance.project.title,
             'status': instance.status,
         }, status=status.HTTP_200_OK)
+    
+
+class ListProposalFreelancerAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProposalsFreelancerSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsFreelancer, IsAuthenticated]
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['submitted_at', 'bid_amount', 'estimated_delivery_days',]
+    ordering = ['-submitted_at']
+    
+    def get_queryset(self):
+        return my_models.Proposal.objects.filter(freelancer=self.request.user)
+
