@@ -136,18 +136,22 @@ class RetrieveUpdateProposalClientAPIView(generics.RetrieveUpdateAPIView):
 
 class AcceptProposalClientAPIView(generics.UpdateAPIView):
     serializer_class = my_serializers.AcceptProposalClientSerializer
-    permission_classes = [IsClient, IsOwner, IsAuthenticated]
+    permission_classes = [IsClient, IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     queryset = my_models.Proposal.objects.all()
     lookup_field = 'id'
     
+    def get_object(self):
+        obj = super().get_object()
+        if obj.project.client != self.request.user:
+            raise PermissionDenied("You are not allowed to accept this proposal.")
+        return obj
+
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-
-        instance.project.proposals.exclude(id=instance.id).update(status='rejected')
 
         return Response({
             'detail': "Proposal accepted.",
@@ -157,4 +161,32 @@ class AcceptProposalClientAPIView(generics.UpdateAPIView):
             'project': instance.project.title,
             'status': instance.status,
             'accepted_at': instance.accepted_at,
+        }, status=status.HTTP_200_OK)
+    
+
+class RejectProposalClientAPIView(generics.UpdateAPIView):
+    serializer_class = my_serializers.RejectProposalClientSerializer
+    permission_classes = [IsAuthenticated, IsClient]
+    queryset = my_models.Proposal.objects.all()
+    lookup_field = 'id'
+
+    def get_object(self):
+        proposal = super().get_object()
+        if proposal.project.client != self.request.user:
+            raise PermissionDenied("You do not have permission to reject this proposal.")
+        return proposal
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response({
+            'detail': "Proposal rejected",
+            'proposal_id': instance.id,
+            'freelancer': instance.freelancer.get_full_name(),
+            'freelancer_email': instance.freelancer.email,
+            'project': instance.project.title,
+            'status': instance.status,
         }, status=status.HTTP_200_OK)

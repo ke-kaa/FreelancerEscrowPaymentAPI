@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from .utils import send_proposal_accept_email
+from django.db import transaction
 
 
 from . import models as my_models
@@ -153,23 +154,40 @@ class AcceptProposalClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = my_models.Proposal
         fields = ['status']
-        read_only_fields = ('status',)
     
     def update(self, instance, validated_data):
         if instance.project.proposals.filter(status='accepted').exists():
             raise serializers.ValidationError("A proposal has already been accpeted for this Project.")
         
-        instance.status = 'accepted'
-        instance.accepted_at = timezone.now()
-        instance.save(update_fields=['status', 'accepted_at'])
+        with transaction.atomic():
+            instance.status = 'accepted'
+            instance.accepted_at = timezone.now()
+            instance.save(update_fields=['status', 'accepted_at'])
 
-        project = instance.project
-        project.freelancer = instance.freelancer
-        project.status = 'active'
-        project.save(update_fields=['freelancer', 'status'])
+            project = instance.project
+            project.freelancer = instance.freelancer
+            project.status = 'active'
+            project.save(update_fields=['freelancer', 'status'])
+            project.proposals.exclude(id=instance.id).update(status='rejected')
+            
+            send_proposal_accept_email(instance.freelancer, instance)
         
-        send_proposal_accept_email(instance.freelancer, instance)
+        return instance
+    
+
+class RejectProposalClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = my_models.Proposal
+        fields = ['status']
+    
+    def update(self, instance, validated_data):
+        if instance.status == 'rejected':
+            raise serializers.ValidationError('This proposal has already been rejected.')
+        if instance.status == 'accepted':
+            raise serializers.ValidationError('You cannot reject a proposal that has already been accepted.')
         
+        instance.status = 'rejected'
+        instance.save(update_fields=['status'])
         return instance
     
 
