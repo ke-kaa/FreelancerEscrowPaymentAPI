@@ -234,3 +234,13 @@ class RetrieveUpdateProposalFreelancerSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+
+class WithdrawProposalFreelancerSerializer(serializers.ModelSerializer):
+    project = serializers.StringRelatedField()
+    class Meta:
+        model = my_models.Proposal
+        fields = ['id', 'project', 'is_withdrawn', 'status']
+        read_only_fields = ['id', 'project', 'is_withdrawn', 'status']
+
+

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from django.shortcuts import get_object_or_404
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import SearchFilter, OrderingFilter
 
 
@@ -229,3 +229,27 @@ class RetrieveUpdateProposalFreelancerAPIView(generics.RetrieveUpdateAPIView):
             'detail': "Proposal successfully updated.",
             'proposal': serializer.data
         }, status=status.HTTP_200_OK)
+
+
+class WithdrawProposalFreelancerAPIView(drf_views.APIView):
+    permission_classes = [IsAuthenticated, IsFreelancer]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request, id):
+        proposal = get_object_or_404(my_models.Proposal, id=id)
+
+        if proposal.freelancer != request.user:
+            raise PermissionDenied("You do not have permission to withdraw this proposal.")
+
+        if proposal.is_withdrawn:
+            raise ValidationError("This proposal has already been withdrawn.")
+
+        if proposal.status == 'accepted':
+            raise ValidationError("You cannot withdraw an accepted proposal.")
+
+        proposal.is_withdrawn = True
+        proposal.save(update_fields=['is_withdrawn'])
+
+        seriailzer = my_serializers.WithdrawProposalFreelancerSerializer(proposal)
+
+        return Response(seriailzer.data, status=status.HTTP_200_OK)
