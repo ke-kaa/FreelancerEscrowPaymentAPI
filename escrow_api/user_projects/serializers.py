@@ -165,20 +165,14 @@ class AcceptProposalClientSerializer(serializers.ModelSerializer):
     
 
 class RejectProposalClientSerializer(serializers.ModelSerializer):
+    freelancer = UserSerializer(read_only=True)
+    project = ProjectSummarySerializer(read_only=True)
+    
     class Meta:
         model = my_models.Proposal
-        fields = ['status']
-    
-    def update(self, instance, validated_data):
-        if instance.status == 'rejected':
-            raise serializers.ValidationError('This proposal has already been rejected.')
-        if instance.status == 'accepted':
-            raise serializers.ValidationError('You cannot reject a proposal that has already been accepted.')
-        
-        instance.status = 'rejected'
-        instance.save(update_fields=['status'])
-        return instance
-    
+        fields = ['id', 'freelancer', 'project', 'updated_at', 'status']
+        read_only_fields = ['id', 'freelancer', 'project', 'status', 'updated_at']
+   
 
 class ListProposalsFreelancerSerializer(serializers.ModelSerializer):
     project = ProjectSummarySerializer(read_only=True)

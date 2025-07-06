@@ -177,31 +177,32 @@ class AcceptProposalClientAPIView(drf_views.APIView):
         }, status=status.HTTP_200_OK)
     
 
-class RejectProposalClientAPIView(generics.UpdateAPIView):
+class RejectProposalClientAPIView(drf_views.APIView):
     serializer_class = my_serializers.RejectProposalClientSerializer
     permission_classes = [IsAuthenticated, IsClient]
-    queryset = my_models.Proposal.objects.all()
-    lookup_field = 'id'
 
-    def get_object(self):
-        proposal = super().get_object()
-        if proposal.project.client != self.request.user:
-            raise PermissionDenied("You do not have permission to reject this proposal.")
-        return proposal
+    def post(self, request, id):
+        proposal = get_object_or_404(my_models.Proposal, id=id)
+        if proposal.project.client != request.user:
+            raise PermissionDenied("You are not allowed to reject this proposal.")
 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        if proposal.status == 'accepted':
+            return Response({
+                    'detail': 'This proposal has already been accepted.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if proposal.status == 'rejected':
+            return Response({
+                'detail': 'This proposal has already been rejected.'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
+        proposal.status = 'rejected'
+        proposal.save(update_fields=['status',])
+
+        serializer = my_serializers.RejectProposalClientSerializer(proposal)
         return Response({
-            'detail': "Proposal rejected",
-            'proposal_id': instance.id,
-            'freelancer': instance.freelancer.get_full_name(),
-            'freelancer_email': instance.freelancer.email,
-            'project': instance.project.title,
-            'status': instance.status,
+            'detail': "Proposal rejected.",
+            'status': serializer.data
         }, status=status.HTTP_200_OK)
     
 
