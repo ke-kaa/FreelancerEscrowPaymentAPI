@@ -157,28 +157,11 @@ class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
 
 
 class AcceptProposalClientSerializer(serializers.ModelSerializer):
+    freelancer = UserSerializer(read_only=True)
     class Meta:
         model = my_models.Proposal
-        fields = ['status']
-    
-    def update(self, instance, validated_data):
-        if instance.project.proposals.filter(status='accepted').exists():
-            raise serializers.ValidationError("A proposal has already been accpeted for this Project.")
-        
-        with transaction.atomic():
-            instance.status = 'accepted'
-            instance.accepted_at = timezone.now()
-            instance.save(update_fields=['status', 'accepted_at'])
-
-            project = instance.project
-            project.freelancer = instance.freelancer
-            project.status = 'active'
-            project.save(update_fields=['freelancer', 'status'])
-            project.proposals.exclude(id=instance.id).update(status='rejected')
-            
-            send_proposal_accept_email(instance.freelancer, instance)
-        
-        return instance
+        fields = ['id', 'freelancer', 'status', 'accepted_at',]
+        read_only_fields = ['id', 'status', 'acceptegd_at']
     
 
 class RejectProposalClientSerializer(serializers.ModelSerializer):

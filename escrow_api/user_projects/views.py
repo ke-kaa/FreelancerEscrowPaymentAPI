@@ -6,10 +6,13 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import SearchFilter, OrderingFilter
+from django.db import transaction
+from django.utils import timezone
 
 
 from . import serializers as my_serializers, models as my_models
 from .permissions import IsClient, IsFreelancer, IsOwner 
+from .utils import send_proposal_accept_email
 
 
 class CreateProjectAPIView(generics.CreateAPIView):
@@ -135,33 +138,42 @@ class RetrieveUpdateProposalClientAPIView(generics.RetrieveUpdateAPIView):
         return super().partial_update(request, *args, **kwargs)
 
 
-class AcceptProposalClientAPIView(generics.UpdateAPIView):
-    serializer_class = my_serializers.AcceptProposalClientSerializer
+class AcceptProposalClientAPIView(drf_views.APIView):
     permission_classes = [IsClient, IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    queryset = my_models.Proposal.objects.all()
-    lookup_field = 'id'
-    
-    def get_object(self):
-        obj = super().get_object()
-        if obj.project.client != self.request.user:
+
+    def post(self, request, id):
+        proposal = get_object_or_404(my_models.Proposal, id=id)
+        if proposal.project.client != request.user:
             raise PermissionDenied("You are not allowed to accept this proposal.")
-        return obj
 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        if proposal.status == 'accepted':
+            return Response({
+                    'detail': 'This proposal has already been accepted.'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
+        if proposal.project.proposals.filter(status='accepted').exists():
+            return Response({
+                    'detail': 'A proposal has already been accepted for this project.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            proposal.status = 'accepted'
+            proposal.accepted_at = timezone.now()
+            proposal.save(update_fields=['status', 'accepted_at'])
+
+            project = proposal.project
+            project.freelancer = proposal.freelancer
+            project.status = 'active'
+            project.save(update_fields=['freelancer', 'status'])
+            project.proposals.exclude(id=proposal.id).update(status='rejected')
+
+            send_proposal_accept_email(proposal.freelancer, proposal)
+
+        serializer = my_serializers.AcceptProposalClientSerializer(proposal)
         return Response({
             'detail': "Proposal accepted.",
-            'proposal_id': instance.id,
-            'freelancer': instance.freelancer.get_full_name(),
-            'freelancer_email': instance.freelancer.email,
-            'project': instance.project.title,
-            'status': instance.status,
-            'accepted_at': instance.accepted_at,
+            'proposal': serializer.data
         }, status=status.HTTP_200_OK)
     
 
