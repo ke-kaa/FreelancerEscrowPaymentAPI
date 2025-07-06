@@ -253,3 +253,14 @@ class WithdrawProposalFreelancerAPIView(drf_views.APIView):
         seriailzer = my_serializers.WithdrawProposalFreelancerSerializer(proposal)
 
         return Response(seriailzer.data, status=status.HTTP_200_OK)
+
+
+class ListProjectProposalsAdminAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectProposalsAdminSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+    queryset = my_models.Proposal.objects.all()
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['submitted_at', 'updated_at', 'accepted_at']
+    ordering = ['-submitted_at']
+

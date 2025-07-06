@@ -244,3 +244,12 @@ class WithdrawProposalFreelancerSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'project', 'is_withdrawn', 'status']
 
 
+class ListProjectProposalsAdminSerializer(serializers.ModelSerializer):
+    project = ProjectSummarySerializer(read_only=True)
+    freelancer = UserSerializer(read_only=True)
+
+    class Meta:
+        model = my_models.Proposal
+        fields = ['id', 'project', 'freelancer', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn', 'accepted_at']
+
+
