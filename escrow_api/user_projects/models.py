@@ -38,7 +38,8 @@ class Proposal(models.Model):
     client_note = models.TextField(blank=True, null=True)
     estimated_delivery_days = models.PositiveIntegerField()
     is_seen_by_client = models.BooleanField(default=False)
-    is_widthdrawn = models.BooleanField(default=False)
+    is_withdrawn = models.BooleanField(default=False)
+    accepted_at = models.DateTimeField(null=True, blank=True)
 
 
 class Milestone(models.Model):
@@ -46,8 +47,18 @@ class Milestone(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=[("pending", "Pending"), ("submitted", "Submitted"), ("approved", "Approved"), ("rejected", "Rejected")], default="pending")
+    status = models.CharField(max_length=20, choices=[
+        ("pending", "Pending"),
+        ("submitted", "Submitted"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected")
+    ], default="pending")
+
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_reason = models.TextField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
+    is_paid = models.BooleanField(default=False)
 
 
 class Review(models.Model):
