@@ -29,6 +29,12 @@ class ProjectSummarySerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'amount', 'created_at', 'status']
 
 
+class MilestoneSummarySeriailzer(serializers.ModelSerializer):
+    class Meta:
+        model = Milestone
+        fields = ['id', 'title', 'description', 'amount', 'status', 'submitted_at', 'approved_at', 'rejected_reason', 'due_date', 'is_paid']
+
+
 class CreateProjectClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProject
@@ -234,7 +240,7 @@ class ListProjectProposalsAdminSerializer(serializers.ModelSerializer):
 class CreateMilestoneClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Milestone
-        fields = ['project', 'title', 'description', 'amount', 'due_date']
+        fields = ['title', 'description', 'amount', 'due_date']
 
     def validate(self, attrs):
         project = attrs.get('project')
@@ -244,10 +250,29 @@ class CreateMilestoneClientSerializer(serializers.ModelSerializer):
         if project.status not in ['pending', 'active']:
             raise serializers.ValidationError("Cannot add milestones to a project that is not active or pending.")
         return attrs
-    
 
-class ListProjectMilestonesSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        project = self.context['project']
+        return Milestone.objects.create(project=project, **validated_data)
+
+
+class ListProjectMilestonesClientFreelancerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Milestone
-        fields = ['id', 'project', 'title', 'description', 'amount', 'status', 'submitted_at', 'approved_at', 'reject_reason', 'due_date', 'is_paid']
+        fields = ['id', 'project', 'title', 'description', 'amount', 'status', 'submitted_at', 'approved_at', 'rejected_reason', 'due_date', 'is_paid']
 
+
+class SubmitMilestoneFreelancerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Milestone
+        fields = ['status']
+        read_only_fields = ['status']
+
+    def update(self, instance, validated_data):
+        if instance.status != 'pending':
+            raise serializers.ValidationError("Only pending milestones can be submitted.")
+        instance.status = 'submitted'
+        instance.submitted_at = timezone.now()
+        instance.save(update_fields=['status', 'submitted_at'])
+        return instance
+    

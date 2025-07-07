@@ -305,8 +305,8 @@ class CreateMilestoneClientAPIView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
         
 
-class ListProjectMilestonesAPIView(generics.ListAPIView):
-    serializer_class = my_serializers.ListProjectMilestoneSerializer
+class ListProjectMilestonesClientFreelancerAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectMilestonesClientFreelancerSerializer
     permission_classes = [permissions.IsAuthenticated, IsClientOrAssignedFreelancer]
     authentication_classes = [JWTAuthentication]
 
@@ -317,3 +317,28 @@ class ListProjectMilestonesAPIView(generics.ListAPIView):
             raise PermissionDenied("You do not have access to this project's milestones.")
         return Milestone.objects.filter(project=project)
     
+
+class SubmitMilestoneFreelancerAPIView(generics.UpdateAPIView):
+    serializer_class = my_serializers.MilestoneSubmitSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFreelancer]
+    authentication_classes = [JWTAuthentication]
+    queryset = Milestone.objects.all()
+    lookup_field = 'id'
+
+    def get_object(self):
+        milestone = super().get_object()
+        if milestone.project.freelancer != self.request.user:
+            raise PermissionDenied("You are not assigned to this milestone.")
+        return milestone
+    
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        milestone = my_serializers.MilestoneSummarySeriailzer(instance)
+        return Response({
+            'detail': "Milestone submitted successfully.",
+            'milestone': milestone.data
+        }, status=status.HTTP_200_OK)
