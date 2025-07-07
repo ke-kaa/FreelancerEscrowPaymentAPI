@@ -11,7 +11,7 @@ from django.utils import timezone
 
 
 from . import serializers as my_serializers
-from .permissions import IsClient, IsFreelancer, IsOwner 
+from .permissions import IsClient, IsFreelancer, IsOwner, IsClientOrAssignedFreelancer
 from .utils import send_proposal_accept_email
 from .models import UserProject, Milestone, Review, Proposal
 
@@ -304,3 +304,16 @@ class CreateMilestoneClientAPIView(generics.CreateAPIView):
             'milestone': serializer.data
         }, status=status.HTTP_201_CREATED)
         
+
+class ListProjectMilestonesAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectMilestoneSerializer
+    permission_classes = [permissions.IsAuthenticated, IsClientOrAssignedFreelancer]
+    authentication_classes = [JWTAuthentication]
+
+    def get_queryset(self):
+        project = get_object_or_404(UserProject, id=self.kwargs['project_id'])
+        user = self.request.user
+        if project.client != user and project.freelancer != user:
+            raise PermissionDenied("You do not have access to this project's milestones.")
+        return Milestone.objects.filter(project=project)
+    

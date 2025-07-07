@@ -246,3 +246,8 @@ class CreateMilestoneClientSerializer(serializers.ModelSerializer):
         return attrs
     
 
+class ListProjectMilestonesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Milestone
+        fields = ['id', 'project', 'title', 'description', 'amount', 'status', 'submitted_at', 'approved_at', 'reject_reason', 'due_date', 'is_paid']
+
