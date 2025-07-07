@@ -285,3 +285,22 @@ class ListProjectProposalsAdminAPIView(generics.ListAPIView):
         return Proposal.objects.filter(project=project)
 
 
+class CreateMilestoneClientAPIView(generics.CreateAPIView):
+    serializer_class = my_serializers.CreateMilestoneClientSerializer
+    permission_classes = [permissions.IsAuthenticated, IsClient]
+    authentication_classes = [JWTAuthentication]
+
+    def get_project(self):
+        return get_object_or_404(UserProject, id=self.kwargs['project_id'], client=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        project = self.get_project()
+        serializer = self.get_serializer(data=request.data, context={'request': request, 'project': project})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        return Response({
+            'detail': "Milestone created.",
+            'milestone': serializer.data
+        }, status=status.HTTP_201_CREATED)
+        

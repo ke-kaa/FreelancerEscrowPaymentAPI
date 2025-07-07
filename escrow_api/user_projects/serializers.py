@@ -231,3 +231,18 @@ class ListProjectProposalsAdminSerializer(serializers.ModelSerializer):
         fields = ['id', 'project', 'freelancer', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn', 'accepted_at']
 
 
+class CreateMilestoneClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Milestone
+        fields = ['project', 'title', 'description', 'amount', 'due_date']
+
+    def validate(self, attrs):
+        project = attrs.get('project')
+        request = self.context['request']
+        if project.client != request.user:
+            raise serializers.ValidationError("You do not have permission to add milestones to this project.")
+        if project.status not in ['pending', 'active']:
+            raise serializers.ValidationError("Cannot add milestones to a project that is not active or pending.")
+        return attrs
+    
+
