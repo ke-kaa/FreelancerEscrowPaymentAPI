@@ -5,7 +5,7 @@ from .utils import send_proposal_accept_email
 from django.db import transaction
 
 
-from . import models as my_models
+from .models import UserProject, Proposal, Milestone, Review
 
 
 User = get_user_model()
@@ -19,19 +19,19 @@ class UserSerializer(serializers.ModelSerializer):
 
 class ProposalSummarySerializer(serializers.ModelSerializer):
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['id', 'big_ammount', 'cover_letter', 'status', 'submitted_at', 'estimated_delivery_days', 'is_withdrawn']
 
 
 class ProjectSummarySerializer(serializers.ModelSerializer):
     class Meta:
-        model = my_models.UserProject
+        model = UserProject
         fields = ['id', 'title', 'description', 'amount', 'created_at', 'status']
 
 
-class CreateProjectSerializer(serializers.ModelSerializer):
+class CreateProjectClientSerializer(serializers.ModelSerializer):
     class Meta:
-        model = my_models.UserProject
+        model = UserProject
         fields = ['title', 'description', 'amount',]
     
     def validate_amount(self, value):
@@ -43,7 +43,7 @@ class CreateProjectSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         user = request.user
 
-        return my_models.UserProject.objects.create(
+        return UserProject.objects.create(
             client=user, 
             **validated_data
         )
@@ -51,19 +51,19 @@ class CreateProjectSerializer(serializers.ModelSerializer):
 
 class ListProjectAdminSerializer(serializers.ModelSerializer):
     class Meta:
-        model = my_models.UserProject
+        model = UserProject
         fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'status', 'commission_rate', 'created_at', 'updated_at']
     
 
 class ListProjectClientSerializer(serializers.ModelSerializer):
     class Meta: 
-        model = my_models.UserProject
+        model = UserProject
         fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
 
     
 class ListProjectFreelancerSerializer(serializers.ModelSerializer):
     class Meta: 
-        model = my_models.UserProject
+        model = UserProject
         fields = ['id', 'client', 'title', 'freelancer', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at']
 
 
@@ -86,7 +86,7 @@ class RetrieveUpdateDeleteProjectClientSerializer(serializers.ModelSerializer):
         return None
         
     class Meta:
-        model = my_models.UserProject
+        model = UserProject
         fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
         read_only_fields = ('id', 'freelancer', 'commission_rate', 'status', 'updated_at', )
 
@@ -96,7 +96,7 @@ class RetrieveProjectFreelancerSerializer(serializers.ModelSerializer):
     proposal = serializers.SerializerMethodField()
     
     class Meta:
-        model = my_models.UserProject
+        model = UserProject
         fields = ['client', 'title', 'description', 'amount', 'status', 'created_at', 'updated_at']
 
     def get_proposal(self, obj):
@@ -113,17 +113,18 @@ class RetrieveProjectAdminSeriailzer(serializers.ModelSerializer):
     freelancer = UserSerializer(read_only=True)
 
     class Meta:
-        model = my_models.UserProject
+        model = UserProject
         fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'comission_rate', 'status', 'created_at', 'updated_at', 'is_public']
 
 
-class CreateProposalSerializer(serializers.ModelSerializer):
+class CreateProposalFreelancerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['cover_letter', 'bid_amount', 'estimated_delivery_days', 'is_withdrawn']
         extra_kwargs = {
             'bid_amount': {'required': True},
-            'cover_letter': {'required': True}
+            'cover_letter': {'required': True},
+            'estimated_delivery_days': {'required': True}
         }
 
     def validate_bid_amount(self, value):
@@ -135,15 +136,15 @@ class CreateProposalSerializer(serializers.ModelSerializer):
         request = self.context['request']
         project = self.context['project']
 
-        if my_models.Proposal.objects.filter(project=project, freelancer=request.user).exists():
+        if Proposal.objects.filter(project=project, freelancer=request.user).exists():
             raise serializers.ValidationError("You have already submitted a proposal for this project.")
 
 
-class ListProjectProposalClientSerializer(serializers.ModelSerializer):
+class ListProjectProposalsClientSerializer(serializers.ModelSerializer):
     freelancer = UserSerializer(read_only=True)
 
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['freelancer', 'bid_amount', 'submitted_at', 'status', 'estimated_delivery_days', 'is_withdrawn']
 
 
@@ -151,7 +152,7 @@ class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
     freelancer = UserSerializer(read_only=True)
 
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['freelancer', 'cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'client_note', 'estimated_delivery_days', 'is_withdrawn']
         read_only_fields = ('cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_withdrawn')
 
@@ -159,7 +160,7 @@ class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
 class AcceptProposalClientSerializer(serializers.ModelSerializer):
     freelancer = UserSerializer(read_only=True)
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['id', 'freelancer', 'status', 'accepted_at',]
         read_only_fields = ['id', 'status', 'acceptegd_at']
     
@@ -169,7 +170,7 @@ class RejectProposalClientSerializer(serializers.ModelSerializer):
     project = ProjectSummarySerializer(read_only=True)
     
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['id', 'freelancer', 'project', 'updated_at', 'status']
         read_only_fields = ['id', 'freelancer', 'project', 'status', 'updated_at']
    
@@ -178,7 +179,7 @@ class ListProposalsFreelancerSerializer(serializers.ModelSerializer):
     project = ProjectSummarySerializer(read_only=True)
 
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['id', 'project', 'cover_letter', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn']
 
 
@@ -186,7 +187,7 @@ class RetrieveUpdateProposalFreelancerSerializer(serializers.ModelSerializer):
     project = ProjectSummarySerializer(read_only=True)
 
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = [
             'id', 'project', 'cover_letter', 'bid_amount', 'status', 'submitted_at',
             'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn',
@@ -216,7 +217,7 @@ class RetrieveUpdateProposalFreelancerSerializer(serializers.ModelSerializer):
 class WithdrawProposalFreelancerSerializer(serializers.ModelSerializer):
     project = serializers.StringRelatedField()
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['id', 'project', 'is_withdrawn', 'status']
         read_only_fields = ['id', 'project', 'is_withdrawn', 'status']
 
@@ -226,7 +227,7 @@ class ListProjectProposalsAdminSerializer(serializers.ModelSerializer):
     freelancer = UserSerializer(read_only=True)
 
     class Meta:
-        model = my_models.Proposal
+        model = Proposal
         fields = ['id', 'project', 'freelancer', 'bid_amount', 'status', 'submitted_at', 'updated_at', 'estimated_delivery_days', 'is_seen_by_client', 'is_withdrawn', 'accepted_at']
 
 

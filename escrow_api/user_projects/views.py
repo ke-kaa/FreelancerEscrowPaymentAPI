@@ -10,13 +10,14 @@ from django.db import transaction
 from django.utils import timezone
 
 
-from . import serializers as my_serializers, models as my_models
+from . import serializers as my_serializers
 from .permissions import IsClient, IsFreelancer, IsOwner 
 from .utils import send_proposal_accept_email
+from .models import UserProject, Milestone, Review, Proposal
 
 
-class CreateProjectAPIView(generics.CreateAPIView):
-    serializer_class = my_serializers.CreateProjectSerializer
+class CreateProjectClientAPIView(generics.CreateAPIView):
+    serializer_class = my_serializers.CreateProjectClientSerializer
     permission_classes = [IsAuthenticated, IsClient]
     authentication_classes = [JWTAuthentication]
 
@@ -35,7 +36,7 @@ class ListProjectAdminAPIView(generics.ListAPIView):
     serializer_class = my_serializers.ListProjectAdminSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]    
     authentication_classes = [JWTAuthentication]
-    queryset = my_models.UserProject.objects.all()
+    queryset = UserProject.objects.all()
 
 
 class ListProjectClientAPIView(generics.ListAPIView):
@@ -44,7 +45,7 @@ class ListProjectClientAPIView(generics.ListAPIView):
     authentication_classes = [JWTAuthentication]
 
     def get_queryset(self):
-        return my_models.UserProject.objects.filter(client=self.request.user)
+        return UserProject.objects.filter(client=self.request.user)
 
 
 class ListProjectFreelancerAPIView(generics.ListAPIView):
@@ -53,7 +54,7 @@ class ListProjectFreelancerAPIView(generics.ListAPIView):
     authentication_classes = [JWTAuthentication]
     
     def get_queryset(self):
-        return my_models.UserProject.objects.filter(is_public=True).filter(freelancer__isnull=True)
+        return UserProject.objects.filter(is_public=True).filter(freelancer__isnull=True)
     
 
 class RetrieveUpdateDeleteProjectClientAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -63,14 +64,14 @@ class RetrieveUpdateDeleteProjectClientAPIView(generics.RetrieveUpdateDestroyAPI
     lookup_field = 'id'
 
     def get_object(self):
-        return get_object_or_404(my_models.UserProject, id=self.kwargs['id'], client=self.request.user)
+        return get_object_or_404(UserProject, id=self.kwargs['id'], client=self.request.user)
 
 
 class RetrieveProjectFreelancerAPIView(generics.RetrieveAPIView):
     serializer_class = my_serializers.RetrieveProjectFreelancerSerializer
     permission_classes = [IsAuthenticated, IsFreelancer]
     authentication_classes = [JWTAuthentication]
-    queryset = my_models.UserProject.objects.filter(is_public=True)
+    queryset = UserProject.objects.filter(is_public=True)
     lookup_field = 'id'
 
 
@@ -78,17 +79,17 @@ class RetrieveProjectAdminAPIView(generics.RetrieveAPIView):
     serializer_class = my_serializers.RetrieveProjectAdminSerializer
     permission_classes = [IsAdminUser, IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    queryset = my_models.UserProject.objects.all()
+    queryset = UserProject.objects.all()
     lookup_field = 'id'
 
 
-class CreateProposalAPIView(generics.CreateAPIView):
-    serializer_class = my_serializers.CreateProposalSerializer
+class CreateProposalFreelancerAPIView(generics.CreateAPIView):
+    serializer_class = my_serializers.CreateProposalFreelancerSerializer
     permission_classes = [IsFreelancer, IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get_poject(self):
-        return get_object_or_404(my_models.Proposal, id=self.kwargs['project_id'])
+    def get_project(self):
+        return get_object_or_404(UserProject, id=self.kwargs['project_id'])
     
     def create(self, request, *args, **kwargs):
         project = self.get_project()
@@ -102,8 +103,8 @@ class CreateProposalAPIView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class ListProjectProposalClientAPIView(generics.ListAPIView):
-    serializer_class = my_serializers.ListProjectProposalSerializer
+class ListProjectProposalsClientAPIView(generics.ListAPIView):
+    serializer_class = my_serializers.ListProjectProposalsClientSerializer
     permission_classes = [IsAuthenticated, IsClient]
     authentication_classes = [JWTAuthentication]
     filter_backends = [filters.OrderingFilter]
@@ -111,11 +112,11 @@ class ListProjectProposalClientAPIView(generics.ListAPIView):
     ordering = ['-submitted_at']
 
     def get_project(self):
-        return get_object_or_404(my_models.UserProject, id=self.kwargs['project_id'], client=self.request.user)
+        return get_object_or_404(UserProject, id=self.kwargs['project_id'], client=self.request.user)
     
     def get_queryset(self):
         project = self.get_project()
-        return my_models.Proposal.objects.filter(project=project, is_withdrawn=False)
+        return Proposal.objects.filter(project=project, is_withdrawn=False)
     
 
 class RetrieveUpdateProposalClientAPIView(generics.RetrieveUpdateAPIView):
@@ -123,7 +124,7 @@ class RetrieveUpdateProposalClientAPIView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsClient, IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     lookup_field = 'id'
-    queryset = my_models.Proposal.objects.all()
+    queryset = Proposal.objects.all()
 
     def get_object(self):
         proposal = super().get_object()
@@ -143,7 +144,7 @@ class AcceptProposalClientAPIView(drf_views.APIView):
     authentication_classes = [JWTAuthentication]
 
     def post(self, request, id):
-        proposal = get_object_or_404(my_models.Proposal, id=id)
+        proposal = get_object_or_404(Proposal, id=id)
         if proposal.project.client != request.user:
             raise PermissionDenied("You are not allowed to accept this proposal.")
 
@@ -182,7 +183,7 @@ class RejectProposalClientAPIView(drf_views.APIView):
     permission_classes = [IsAuthenticated, IsClient]
 
     def post(self, request, id):
-        proposal = get_object_or_404(my_models.Proposal, id=id)
+        proposal = get_object_or_404(Proposal, id=id)
         if proposal.project.client != request.user:
             raise PermissionDenied("You are not allowed to reject this proposal.")
 
@@ -215,14 +216,14 @@ class ListProposalFreelancerAPIView(generics.ListAPIView):
     ordering = ['-submitted_at']
     
     def get_queryset(self):
-        return my_models.Proposal.objects.filter(freelancer=self.request.user)
+        return Proposal.objects.filter(freelancer=self.request.user)
 
 
 class RetrieveUpdateProposalFreelancerAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = my_serializers.RetrieveUpdateProposalFreelancerSerializer
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsFreelancer, IsAuthenticated, IsOwner]
-    queryset = my_models.Proposal.objects.all()
+    queryset = Proposal.objects.all()
     lookup_field = 'id'
 
     def get_object(self):
@@ -249,7 +250,7 @@ class WithdrawProposalFreelancerAPIView(drf_views.APIView):
     authentication_classes = [JWTAuthentication]
 
     def post(self, request, id):
-        proposal = get_object_or_404(my_models.Proposal, id=id)
+        proposal = get_object_or_404(Proposal, id=id)
 
         if proposal.freelancer != request.user:
             raise PermissionDenied("You do not have permission to withdraw this proposal.")
@@ -272,8 +273,15 @@ class ListProjectProposalsAdminAPIView(generics.ListAPIView):
     serializer_class = my_serializers.ListProjectProposalsAdminSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
-    queryset = my_models.Proposal.objects.all()
     filter_backends = [OrderingFilter]
     ordering_fields = ['submitted_at', 'updated_at', 'accepted_at']
     ordering = ['-submitted_at']
+
+    def get_project(self):
+        return get_object_or_404(UserProject, id=self.kwargs['project_id'])
+    
+    def get_queryset(self):
+        project = self.get_project()
+        return Proposal.objects.filter(project=project)
+
 
