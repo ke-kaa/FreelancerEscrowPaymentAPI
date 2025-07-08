@@ -277,33 +277,6 @@ class SubmitMilestoneFreelancerSerializer(serializers.ModelSerializer):
         return instance
     
 
-class ReviewMilestoneClientSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Milestone
-        fields = ['status', 'rejected_reason']
-
-    def update(self, instance, validated_data):
-        if instance.status != 'submitted':
-            raise serializers.ValidationError("Only submitted milestones can be reviewed.")
-
-        status = validated_data.get('status')
-        if status == 'approved':
-            instance.status = 'approved'
-            instance.approved_at = timezone.now()
-            instance.rejected_reason = None
-        elif status == 'rejected':
-            reason = validated_data.get('rejected_reason')
-            if not reason:
-                raise serializers.ValidationError("Rejection reason must be provided.")
-            instance.status = 'rejected'
-            instance.rejected_reason = reason
-        else:
-            raise serializers.ValidationError("Invalid status.")
-
-        instance.save(update_fields=['status', 'approved_at', 'rejected_reason'])
-        return instance
-
-
 class RetrieveUpdateDeleteMilestoneClientSerializer(serializers.ModelSerializer):
     project = ProjectSummarySerializer(read_only=True)
 
@@ -333,3 +306,38 @@ class RetrieveMilestoneFreelancerSerializer(serializers.ModelSerializer):
         fields = ['id', 'project', 'title', 'description', 'amount', 'due_date', 'status', 'submitted_at', 'approved_at', 'rejected_reason', 'is_paid']
         read_only_fields = ['id', 'project', 'title', 'description', 'amount', 'due_date', 'submitted_at', 'approved_at', 'rejected_reason', 'is_paid']
     
+
+class ApproveMilestoneClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Milestone
+        fields = ['status']
+
+    def update(self, instance, validated_data):
+        if instance.status != 'submitted':
+            raise serializers.ValidationError("Only submitted milestones can be approved.")
+        
+        instance.status = 'approved'
+        instance.approved_at = timezone.now()
+        # TODO: Trigger escrow release here if needed
+        instance.save(update_fields=['status', 'approved_at'])
+        
+        return instance
+
+
+class RejectMilestoneClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Milestone
+        fields = ['status', 'rejected_reason']
+
+    def update(self, instance, validated_data):
+        if instance.status != 'submitted':
+            raise serializers.ValidationError("Only submitted milestones can be rejected.")
+        reason = validated_data.get('rejected_reason')
+        if not reason:
+            raise serializers.ValidationError("Rejection reason must be provided.")
+        instance.status = 'rejected'
+        instance.rejected_reason = reason
+        instance.save(update_fields=['status', 'rejected_reason'])
+        
+        return instance
+

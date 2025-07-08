@@ -344,33 +344,7 @@ class SubmitMilestoneFreelancerAPIView(generics.UpdateAPIView):
         }, status=status.HTTP_200_OK)
 
 
-class ReviewMilestoneClientAPIView(generics.UpdateAPIView):
-    serializer_class = my_serializers.ReviewMilestoneClientSerializer
-    permission_classes = [permissions.IsAuthenticated, IsClient]
-    authentication_classes = [JWTAuthentication]
-    queryset = Milestone.objects.all()
-    lookup_field = 'id'
-
-    def get_object(self):
-        milestone = super().get_object()
-        if milestone.project.client != self.request.user:
-            raise PermissionDenied("You are not authorized to review this milestone.")
-        return milestone
-    
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        milestone = my_serializers.MilestoneSummarySeriailzer(instance)
-        return Response({
-            'detail': "Milestone review submitted successfully.",
-            'milestone': milestone.data
-        }, status=status.HTTP_200_OK)
-
-
-class RetrieveUpdateMilestoneClientAPIView(generics.RetrieveUpdateDestroyAPIView):
+class RetrieveUpdateDeleteMilestoneClientAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = my_serializers.RetrieveUpdateDeleteMilestoneClientSerializer
     permission_classes = [IsAuthenticated, IsClient]
     authentication_classes = [JWTAuthentication]
@@ -419,4 +393,58 @@ class RetrieveMilestoneFreelancerAPIView(generics.RetrieveAPIView):
         if milestone.project.freelancer != self.request.user:
             raise PermissionDenied("You do not have permission to view this milestone.")
         return milestone
+    
+
+class ApproveMilestoneClientAPIView(generics.UpdateAPIView):
+    serializer_class = my_serializers.ApproveMilestoneClientSerializer
+    permission_classes = [permissions.IsAuthenticated, IsClient]
+    authentication_classes = [JWTAuthentication]
+    queryset = Milestone.objects.all()
+    lookup_field = 'id'
+
+    def get_object(self):
+        milestone = super().get_object()
+        if milestone.project.client != self.request.user:
+            raise PermissionDenied("You are not authorized to approve this milestone.")
+        return milestone
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        # TODO: Trigger escrow release here if needed
+        
+        milestone = my_serializers.MilestoneSummarySeriailzer(instance)
+        return Response({
+            'detail': "Milestone approved successfully.",
+            'milestone': milestone.data
+        }, status=status.HTTP_200_OK)
+
+
+class RejectMilestoneClientAPIView(generics.UpdateAPIView):
+    serializer_class = my_serializers.RejectMilestoneClientSerializer
+    permission_classes = [permissions.IsAuthenticated, IsClient]
+    authentication_classes = [JWTAuthentication]
+    queryset = Milestone.objects.all()
+    lookup_field = 'id'
+
+    def get_object(self):
+        milestone = super().get_object()
+        if milestone.project.client != self.request.user:
+            raise PermissionDenied("You are not authorized to reject this milestone.")
+        return milestone
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        milestone = my_serializers.MilestoneSummarySeriailzer(instance)
+        return Response({
+            'detail': "Milestone rejected successfully.",
+            'milestone': milestone.data
+        }, status=status.HTTP_200_OK)
     
