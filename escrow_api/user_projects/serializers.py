@@ -324,3 +324,12 @@ class RetrieveUpdateDeleteMilestoneClientSerializer(serializers.ModelSerializer)
         instance.save()
         return instance
 
+
+class RetrieveMilestoneFreelancerSerializer(serializers.ModelSerializer):
+    project = ProjectSummarySerializer(read_only=True)
+
+    class Meta:
+        model = Milestone
+        fields = ['id', 'project', 'title', 'description', 'amount', 'due_date', 'status', 'submitted_at', 'approved_at', 'rejected_reason', 'is_paid']
+        read_only_fields = ['id', 'project', 'title', 'description', 'amount', 'due_date', 'submitted_at', 'approved_at', 'rejected_reason', 'is_paid']
+    

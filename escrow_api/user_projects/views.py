@@ -406,3 +406,17 @@ class RetrieveUpdateMilestoneClientAPIView(generics.RetrieveUpdateDestroyAPIView
         instance.delete()
         return Response({"detail": "Milestone deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
+
+class RetrieveMilestoneFreelancerAPIView(generics.RetrieveAPIView):
+    serializer_class = my_serializers.RetrieveUpdateMilestoneFreelancerSerializer
+    permission_classes = [IsAuthenticated, IsFreelancer]
+    authentication_classes = [JWTAuthentication]
+    queryset = Milestone.objects.all()
+    lookup_field = 'id'
+
+    def get_object(self):
+        milestone = super().get_object()
+        if milestone.project.freelancer != self.request.user:
+            raise PermissionDenied("You do not have permission to view this milestone.")
+        return milestone
+    
