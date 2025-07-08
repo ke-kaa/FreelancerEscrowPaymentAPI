@@ -303,3 +303,24 @@ class ReviewMilestoneClientSerializer(serializers.ModelSerializer):
         instance.save(update_fields=['status', 'approved_at', 'rejected_reason'])
         return instance
 
+
+class RetrieveUpdateDeleteMilestoneClientSerializer(serializers.ModelSerializer):
+    project = ProjectSummarySerializer(read_only=True)
+
+    class Meta:
+        model = Milestone
+        fields = ['id', 'project', 'title', 'description', 'amount', 'due_date','status', 'submitted_at', 'approved_at', 'rejected_reason', 'is_paid']
+        read_only_fields = ['id', 'project', 'submitted_at', 'approved_at', 'rejected_reason', 'is_paid']
+
+
+    def update(self, instance, validated_data):
+        if instance.status != 'pending':
+            raise serializers.ValidationError("Only pending milestones can be updated.")
+        
+        for attr in ['title', 'description', 'amount', 'due_date']:
+            if attr in validated_data:
+                setattr(instance, attr, validated_data[attr])
+
+        instance.save()
+        return instance
+
