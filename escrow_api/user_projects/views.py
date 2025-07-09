@@ -414,8 +414,6 @@ class ApproveMilestoneClientAPIView(generics.UpdateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        # TODO: Trigger escrow release here if needed
-        
         milestone = my_serializers.MilestoneSummarySeriailzer(instance)
         return Response({
             'detail': "Milestone approved successfully.",
@@ -448,3 +446,38 @@ class RejectMilestoneClientAPIView(generics.UpdateAPIView):
             'milestone': milestone.data
         }, status=status.HTTP_200_OK)
     
+
+class CreateProjectReviewAPIView(generics.CreateAPIView):
+    serializer_class = CreateReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_project(self):
+        return get_object_or_404(UserProject, id=self.kwargs['project_id'])
+
+    def perform_create(self, serializer):
+        project = self.get_project()
+        user = self.request.user
+
+        # Only allow if project is completed
+        if project.status != 'completed':
+            raise serializers.ValidationError("You can only review after project completion.")
+
+        # Only client or assigned freelancer can review
+        if user != project.client and user != project.freelancer:
+            raise serializers.ValidationError("You are not part of this project.")
+
+        # Reviewer and reviewee logic
+        if user == project.client:
+            reviewee = project.freelancer
+        else:
+            reviewee = project.client
+
+        # Prevent duplicate reviews
+        if Review.objects.filter(project=project, reviewer=user, reviewee=reviewee).exists():
+            raise serializers.ValidationError("You have already reviewed this user for this project.")
+
+        # Prevent self-review
+        if user == reviewee:
+            raise serializers.ValidationError("You cannot review yourself.")
+
+        serializer.save(project=project, reviewer=user, reviewee=reviewee)
