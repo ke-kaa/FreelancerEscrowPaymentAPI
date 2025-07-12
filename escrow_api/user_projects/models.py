@@ -62,9 +62,27 @@ class Milestone(models.Model):
 
 
 class Review(models.Model):
+    REVIEW_TYPE_CHOICES = [
+        ("client", "Client Review"),  # from client to freelancer
+        ("freelancer", "Freelancer Review"),  # from freelancer to client
+    ]
+
     project = models.ForeignKey(UserProject, on_delete=models.CASCADE, related_name="reviews")
     reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="given_reviews")
     reviewee = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_reviews")
+    
+    review_type = models.CharField(max_length=20, choices=REVIEW_TYPE_CHOICES)
+    
     rating = models.PositiveSmallIntegerField()
+    communication = models.PositiveSmallIntegerField(null=True, blank=True)
+    quality = models.PositiveSmallIntegerField(null=True, blank=True)
+    professionalism = models.PositiveSmallIntegerField(null=True, blank=True)
+
     comment = models.TextField()
+    private_comment = models.TextField(blank=True, null=True)
+    is_visible = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['project', 'reviewer', 'review_type']
+
