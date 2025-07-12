@@ -447,37 +447,40 @@ class RejectMilestoneClientAPIView(generics.UpdateAPIView):
         }, status=status.HTTP_200_OK)
     
 
-class CreateProjectReviewAPIView(generics.CreateAPIView):
-    serializer_class = CreateReviewSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class SubmitReviewAPIView(generics.CreateAPIView):
+    serializer_class = my_serializers.CreateReviewSerializer
+    permission_classes = [IsAuthenticated, IsClientOrAssignedFreelancer]
 
     def get_project(self):
         return get_object_or_404(UserProject, id=self.kwargs['project_id'])
 
-    def perform_create(self, serializer):
+    def get_review_type(self, project, user):
+        if project.client == user:
+            return 'client'
+        elif project.freelancer == user:
+            return 'freelancer'
+        raise PermissionDenied("You are not part of this project.")
+
+    def get_reviewee(self, project, user):
+        return project.freelancer if user == project.client else project.client
+
+    def get_serializer_context(self):
         project = self.get_project()
         user = self.request.user
+        return {
+            'request': self.request,
+            'project': project,
+            'review_type': self.get_review_type(project, user),
+            'reviewee': self.get_reviewee(project, user)
+        }
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        return Response({
+            "detail": "Review submitted successfully.",
+            "review": serializer.data
+        }, status=status.HTTP_201_CREATED)
 
-        # Only allow if project is completed
-        if project.status != 'completed':
-            raise serializers.ValidationError("You can only review after project completion.")
-
-        # Only client or assigned freelancer can review
-        if user != project.client and user != project.freelancer:
-            raise serializers.ValidationError("You are not part of this project.")
-
-        # Reviewer and reviewee logic
-        if user == project.client:
-            reviewee = project.freelancer
-        else:
-            reviewee = project.client
-
-        # Prevent duplicate reviews
-        if Review.objects.filter(project=project, reviewer=user, reviewee=reviewee).exists():
-            raise serializers.ValidationError("You have already reviewed this user for this project.")
-
-        # Prevent self-review
-        if user == reviewee:
-            raise serializers.ValidationError("You cannot review yourself.")
-
-        serializer.save(project=project, reviewer=user, reviewee=reviewee)

@@ -341,3 +341,29 @@ class RejectMilestoneClientSerializer(serializers.ModelSerializer):
         
         return instance
 
+
+class CreateReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = [
+            'project', 'review_type', 'rating', 'communication',
+            'quality', 'professionalism', 'comment', 'private_comment'
+        ]
+        read_only_fields = ['project', 'review_type']
+
+    def validate(self, data):
+        user = self.context['request'].user
+        project = self.context['project']
+        review_type = self.context['review_type']
+
+        if Review.objects.filter(project=project, reviewer=user, review_type=review_type).exists():
+            raise serializers.ValidationError("You have already reviewed this project.")
+        return data
+
+    def create(self, validated_data):
+        validated_data['reviewer'] = self.context['request'].user
+        validated_data['reviewee'] = self.context['reviewee']
+        validated_data['project'] = self.context['project']
+        validated_data['review_type'] = self.context['review_type']
+        return super().create(validated_data)
+
