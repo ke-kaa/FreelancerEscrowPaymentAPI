@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .utils import send_proposal_accept_email
 from django.db import transaction
+from django.utils.timezone import timedelta
 
 
+from .utils import send_proposal_accept_email
 from .models import UserProject, Proposal, Milestone, Review
 
 
@@ -345,25 +346,42 @@ class RejectMilestoneClientSerializer(serializers.ModelSerializer):
 class CreateReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
-        fields = [
-            'project', 'review_type', 'rating', 'communication',
-            'quality', 'professionalism', 'comment', 'private_comment'
-        ]
+        fields = ['project', 'review_type', 'rating', 'communication', 'quality', 'professionalism', 'comment', 'private_comment']
         read_only_fields = ['project', 'review_type']
 
-    def validate(self, data):
+    def validate(self, attrs):
         user = self.context['request'].user
         project = self.context['project']
         review_type = self.context['review_type']
 
-        if Review.objects.filter(project=project, reviewer=user, review_type=review_type).exists():
-            raise serializers.ValidationError("You have already reviewed this project.")
-        return data
+        if project.status != 'completed' or not project.completed_at:
+            raise serializers.ValidationError("Reviews can only be submitted for completed projects.")
+
+        review_deadline = project.completed_at + timedelta(days=14)
+        if timezone.now() > review_deadline:
+            raise serializers.ValidationError("Review period has expired.")
+
+        if Review.objects.filter(project=project, reviewer=user, review_type=attrs['review_type']).exists():
+            raise serializers.ValidationError("You have already submitted this review.")
+
+        return attrs
 
     def create(self, validated_data):
         validated_data['reviewer'] = self.context['request'].user
         validated_data['reviewee'] = self.context['reviewee']
         validated_data['project'] = self.context['project']
         validated_data['review_type'] = self.context['review_type']
+        
         return super().create(validated_data)
+
+
+class RetrieveProjectReviewSerializer(serializers.ModelSerializer):
+    reviewer = serializers.StringRelatedField()
+    reviewee = serializers.StringRelatedField()
+    project = serializers.StringRelatedField()
+
+    class Meta:
+        model = Review
+        fields = ['id', 'project', 'reviewer', 'reviewee', 'review_type', 'rating', 'communication', 'quality', 'professionalism', 'comment', 'created_at']
+        read_only_fields = fields
 

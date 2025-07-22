@@ -478,9 +478,25 @@ class SubmitReviewAPIView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data, context=self.get_serializer_context())
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        
+
         return Response({
             "detail": "Review submitted successfully.",
             "review": serializer.data
         }, status=status.HTTP_201_CREATED)
 
+
+class RetrieveProjectReviewAPIView(generics.RetrieveAPIView):
+    serializer_class = my_serializers.RetrieveProjectReviewSerializer
+    permission_classes = [permissions.AllowAny]
+    queryset = Review.objects.all()
+    lookup_field = 'id'
+
+    def get_object(self):
+        review = super().get_object()
+        project = review.project
+
+        if project.status != 'completed' or not review.is_visible:
+            raise PermissionDenied("Review is not available.")
+        
+        return review
+    
