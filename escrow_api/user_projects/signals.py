@@ -4,7 +4,6 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import Review, UserProject
 
-REVIEW_PERIOD_DAYS = 14
 
 @receiver(post_save, sender=Review)
 def auto_make_reviews_visible(sender, instance, created, **kwargs):

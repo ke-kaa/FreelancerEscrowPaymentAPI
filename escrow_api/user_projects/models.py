@@ -81,6 +81,7 @@ class Review(models.Model):
 
     comment = models.TextField()
     private_comment = models.TextField(blank=True, null=True)
+    
     is_visible = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

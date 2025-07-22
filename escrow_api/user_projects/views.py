@@ -487,7 +487,7 @@ class SubmitReviewAPIView(generics.CreateAPIView):
 
 class RetrieveProjectReviewAPIView(generics.RetrieveAPIView):
     serializer_class = my_serializers.RetrieveProjectReviewSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAuthenticated]
     queryset = Review.objects.all()
     lookup_field = 'id'
 
@@ -500,3 +500,15 @@ class RetrieveProjectReviewAPIView(generics.RetrieveAPIView):
         
         return review
     
+
+class UpdateReviewAPIView(generics.RetrieveUpdateAPIView):
+    queryset = Review.objects.all()
+    serializer_class = my_serializers.UpdateProjectReviewSerializer
+    permission_classes = [IsAuthenticated, IsClientOrAssignedFreelancer]
+
+    def get_object(self):
+        review = super().get_object()
+        if review.reviewer != self.request.user:
+            raise PermissionDenied("You do not have permission to update this review.")
+        return review
+

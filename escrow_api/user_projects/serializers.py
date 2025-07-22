@@ -7,6 +7,7 @@ from django.utils.timezone import timedelta
 
 from .utils import send_proposal_accept_email
 from .models import UserProject, Proposal, Milestone, Review
+from .constants import REVIEW_UPDATE_WINDOW_DAYS
 
 
 User = get_user_model()
@@ -384,4 +385,24 @@ class RetrieveProjectReviewSerializer(serializers.ModelSerializer):
         model = Review
         fields = ['id', 'project', 'reviewer', 'reviewee', 'review_type', 'rating', 'communication', 'quality', 'professionalism', 'comment', 'created_at']
         read_only_fields = fields
+
+
+class UpdateProjectReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = [
+            'rating',
+            'communication',
+            'quality',
+            'professionalism',
+            'comment',
+            'private_comment',
+        ]
+
+    def validate(self, attrs):
+        review = self.instance
+        deadline = review.created_at + timedelta(days=REVIEW_UPDATE_WINDOW_DAYS)
+        if timezone.now() > deadline:
+            raise serializers.ValidationError("You can no longer update this review.")
+        return attrs
 
