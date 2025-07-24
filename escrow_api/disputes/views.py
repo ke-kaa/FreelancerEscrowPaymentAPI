@@ -1,11 +1,18 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
+from django.core.exceptions import PermissionDenied
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.permissions import IsAuthenticated
 
 from . import serializers as my_serializers
 from user_projects.permissions import IsClientOrAssignedFreelancer, IsOwner
 from user_projects.models import UserProject
+from .permissions import IsModerator, IsDisputeParticipantOrModerator
+from .models import Dispute, DisputeMessage
+
 
 class CreateDisputeAPIView(generics.CreateAPIView):
     """
@@ -37,4 +44,40 @@ class CreateDisputeAPIView(generics.CreateAPIView):
             "detail": "Dispute created successfully.",
             "dispute": serializer.data
         }, status=status.HTTP_201_CREATED)
+
+
+class ListDisputesAPIView(generics.ListAPIView):
+    """
+    List disputes.
+    - Moderators/Admins see all disputes.
+    - Clients/Freelancers see only disputes they are involved in.
+    """
+    serializer_class = my_serializers.DisputeDetailSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
+    filterset_fields = ['status', 'dispute_type']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-updated_at']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.groups.filter(name='Moderators').exists():
+            return Dispute.objects.all()
+        
+        return Dispute.objects.filter(
+            Q(project__client=user) | Q(project__freelancer=user)
+        )
+
+
+class RetrieveDisputeAPIView(generics.RetrieveAPIView):
+    """
+    Retrieve a single dispute's details.
+    Accessible only by participants (client, freelancer) or moderators.
+    """
+    serializer_class = my_serializers.DisputeDetailSerializer
+    permission_classes = [IsAuthenticated, IsDisputeParticipantOrModerator]
+    authentication_classes = [JWTAuthentication]
+    queryset = Dispute.objects.select_related('project', 'raised_by', 'resolved_by')
+    lookup_field = 'id'
 

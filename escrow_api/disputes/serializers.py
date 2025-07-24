@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.db import transaction
+from django.utils import timezone
 
-from .models import Dispute
+from .models import Dispute, DisputeMessage
 
 
 class CreateDisputeSerializer(serializers.ModelSerializer):
@@ -54,3 +55,18 @@ class CreateDisputeSerializer(serializers.ModelSerializer):
             #     escrow.save(update_fields=['is_locked'])
 
         return dispute
+
+
+class DisputeDetailSerializer(serializers.ModelSerializer):
+    """
+    Serializer for retrieving a single dispute with all its details and messages.
+    """
+    project = serializers.StringRelatedField()
+    raised_by = serializers.StringRelatedField()
+    resolved_by = serializers.StringRelatedField()
+    
+    class Meta:
+        model = Dispute
+        fields = ['id', 'project', 'raised_by', 'dispute_type', 'reason', 'status', 'resolution', 'resolved_by', 'resolved_at', 'closed_at', 'moderator_note', 'created_at', 'updated_at',]
+        read_only_fields = fields
+
