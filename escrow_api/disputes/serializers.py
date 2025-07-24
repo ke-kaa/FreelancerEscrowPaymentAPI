@@ -70,3 +70,44 @@ class DisputeDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'project', 'raised_by', 'dispute_type', 'reason', 'status', 'resolution', 'resolved_by', 'resolved_at', 'closed_at', 'moderator_note', 'created_at', 'updated_at',]
         read_only_fields = fields
 
+
+class ModeratorUpdateDisputeSerializer(serializers.ModelSerializer):
+    """
+    Serializer for moderators to update a dispute's status and resolution.
+    """
+    class Meta:
+        model = Dispute
+        fields = ['status', 'resolution', 'moderator_note']
+
+    def validate_status(self, value):
+        if value not in ['resolved', 'closed']:
+            raise serializers.ValidationError("Moderators can only set the status to 'resolved' or 'closed'.")
+        return value
+
+    def update(self, instance, validated_data):
+        if instance.status != 'open':
+            raise serializers.ValidationError(f"Cannot update a dispute with status '{instance.status}'.")
+
+        status = validated_data.get('status')
+        
+        with transaction.atomic():
+            instance.status = status
+            instance.resolution = validated_data.get('resolution', instance.resolution)
+            instance.moderator_note = validated_data.get('moderator_note', instance.moderator_note)
+            
+            if status == 'resolved':
+                instance.resolved_by = self.context['request'].user
+                instance.resolved_at = timezone.now()
+                # # Unlock the project's escrow transaction if it exists
+                # if hasattr(instance.project, 'escrotransaction'):
+                #     escrow = instance.project.escrotransaction
+                #     escrow.is_locked = False
+                #     escrow.save(update_fields=['is_locked'])
+            
+            elif status == 'closed':
+                instance.closed_at = timezone.now()
+
+            instance.save()
+        
+        return instance
+

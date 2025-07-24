@@ -81,3 +81,23 @@ class RetrieveDisputeAPIView(generics.RetrieveAPIView):
     queryset = Dispute.objects.select_related('project', 'raised_by', 'resolved_by')
     lookup_field = 'id'
 
+
+class ModeratorUpdateDisputeAPIView(generics.UpdateAPIView):
+    """
+    Allows a moderator to update a dispute (e.g., set status to resolved/closed).
+    """
+    serializer_class = my_serializers.ModeratorUpdateDisputeSerializer
+    permission_classes = [permissions.IsAuthenticated, IsModerator]
+    authentication_classes = [JWTAuthentication]
+    queryset = Dispute.objects.all()
+    lookup_field = 'id'
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        response_serializer = my_serializers.DisputeDetailSerializer(instance)
+        return Response(response_serializer.data)
+
