@@ -5,7 +5,7 @@ from django.utils import timezone
 from .models import Dispute, DisputeMessage
 
 
-class CreateDisputeSerializer(serializers.ModelSerializer):
+class DisputeCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating a new dispute. Assumes the view provides 'project'
     and 'request' in the context.
@@ -71,7 +71,7 @@ class DisputeDetailSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class ModeratorUpdateDisputeSerializer(serializers.ModelSerializer):
+class ModeratorDisputeUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for moderators to update a dispute's status and resolution.
     """
@@ -110,4 +110,18 @@ class ModeratorUpdateDisputeSerializer(serializers.ModelSerializer):
             instance.save()
         
         return instance
+
+
+class UpdateDisputeSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the dispute owner to update the reason or type.
+    """
+    class Meta:
+        model = Dispute
+        fields = ['dispute_type', 'reason']
+
+    def validate(self, attrs):
+        if self.instance.status != 'open':
+            raise serializers.ValidationError("Cannot edit a dispute that is no longer open.")
+        return attrs
 

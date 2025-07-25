@@ -25,3 +25,11 @@ class IsDisputeParticipantOrModerator(BasePermission):
         
         return is_participant or is_moderator
 
+
+class IsDisputeOwner(BasePermission):
+    """
+    Allows access only to the user who created the dispute.
+    """
+    def has_object_permission(self, request, view, obj: Dispute):
+        return obj.raised_by == request.user
+

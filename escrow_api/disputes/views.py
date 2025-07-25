@@ -6,11 +6,12 @@ from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 
 from . import serializers as my_serializers
 from user_projects.permissions import IsClientOrAssignedFreelancer, IsOwner
 from user_projects.models import UserProject
-from .permissions import IsModerator, IsDisputeParticipantOrModerator
+from .permissions import IsModerator, IsDisputeParticipantOrModerator, IsDisputeOwner
 from .models import Dispute, DisputeMessage
 
 
@@ -19,7 +20,7 @@ class CreateDisputeAPIView(generics.CreateAPIView):
     Allows an authenticated client or freelancer to create a dispute for a project.
     The URL must contain the project_id.
     """
-    serializer_class = my_serializers.CreateDisputeSerializer
+    serializer_class = my_serializers.DisputeCreateSerializer
     permission_classes = [permissions.IsAuthenticated, IsClientOrAssignedFreelancer, IsOwner]
     authentication_classes = [JWTAuthentication]
 
@@ -86,7 +87,7 @@ class ModeratorUpdateDisputeAPIView(generics.UpdateAPIView):
     """
     Allows a moderator to update a dispute (e.g., set status to resolved/closed).
     """
-    serializer_class = my_serializers.ModeratorUpdateDisputeSerializer
+    serializer_class = my_serializers.ModeratorDisputeUpdateSerializer
     permission_classes = [permissions.IsAuthenticated, IsModerator]
     authentication_classes = [JWTAuthentication]
     queryset = Dispute.objects.all()
@@ -100,4 +101,39 @@ class ModeratorUpdateDisputeAPIView(generics.UpdateAPIView):
         
         response_serializer = my_serializers.DisputeDetailSerializer(instance)
         return Response(response_serializer.data)
+
+
+class UpdateDeleteDisputeAPIView(generics.UpdateDestroyAPIView):
+    """
+    Allows the user who raised a dispute to update or delete it,
+    but only if the dispute is still 'open'.
+    """
+    serializer_class = my_serializers.UpdateDisputeSerializer
+    permission_classes = [IsAuthenticated, IsDisputeOwner]
+    authentication_classes = [JWTAuthentication]
+    queryset = Dispute.objects.all()
+    lookup_field = 'id'
+
+    def perform_destroy(self, instance):
+        """
+        Custom logic for deleting a dispute.
+        """
+        if instance.status != 'open':
+            raise PermissionDenied("Cannot delete a dispute that is no longer open.")
+        
+        project = instance.project
+        
+        with transaction.atomic():
+            project.status = 'active'
+            project.save(update_fields=['status'])
+
+            # TODO ;)
+            # Unlock the associated escrow transaction 
+            # if hasattr(project, 'escrotransaction'):
+            #     escrow = project.escrotransaction
+            #     escrow.is_locked = False
+            #     escrow.save(update_fields=['is_locked'])
+            
+            # Finally, delete the dispute instance
+            instance.delete()
 
