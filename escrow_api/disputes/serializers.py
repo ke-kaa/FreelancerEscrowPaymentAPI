@@ -28,7 +28,7 @@ class DisputeCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A dispute has already been raised for this project.")
 
         if project.status not in ['active', 'completed']:
-             raise serializers.ValidationError(f"A dispute cannot be raised for a project with status '{project.status}'.")
+            raise serializers.ValidationError(f"A dispute cannot be raised for a project with status '{project.status}'.")
 
         return attrs
 
