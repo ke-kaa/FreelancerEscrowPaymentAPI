@@ -22,6 +22,7 @@ class EscrowTransaction(models.Model):
     # stripe_payment_intent_id = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_funding')
 
     def __str__(self):
         return f"Escrow for {self.project.title} ({self.amount})"
