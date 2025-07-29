@@ -101,3 +101,21 @@ class PayoutMethod(models.Model):
         self.clean()
         super().save(*args, **kwargs)
 
+
+class Bank(models.Model):
+    """
+    Stores bank information for Chapa transfers.
+    This can be populated from Chapa's get banks endpoint.
+    """
+    code = models.CharField(max_length=10, unique=True, help_text="Bank code from Chapa API")
+    name = models.CharField(max_length=100, help_text="Bank name")
+    country = models.CharField(max_length=10, default='ET', help_text="Country code")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Bank"
+        verbose_name_plural = "Banks"
+    
+    def __str__(self):
+        return f"{self.name} ({self.code})"
