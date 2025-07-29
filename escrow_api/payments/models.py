@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from escrow.models import EscrowTransaction
+from django.core.exceptions import ValidationError
 
 User = get_user_model()
 
@@ -56,7 +57,7 @@ class PaymentMethod(models.Model):
 
 class PayoutMethod(models.Model):
     """
-    Stores a freelancer's information for receiving money.
+    Stores freelancer's payout account details for transfers.
     """
     PROVIDER_CHOICES = (
         ('telebirr', 'Telebirr'),
@@ -67,11 +68,36 @@ class PayoutMethod(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payout_methods')
     provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
-    provider_account_id = models.CharField(max_length=255) # Account ID, phone number, etc.
-    display_info = models.CharField(max_length=100) # e.g., "Stripe Account" or "0912345678"
+
+    account_name = models.CharField(max_length=255, help_text="Recipient's full name")
+    account_number = models.CharField(max_length=50, help_text="Recipient's account number")
+    bank_code = models.CharField(max_length=10, help_text="Bank code for the recipient's bank")
+    bank_name = models.CharField(max_length=100, blank=True, help_text="Bank name (for display)")
+
     is_default = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ['user', 'provider', 'account_number']
+        verbose_name = "Payout Method"
+        verbose_name_plural = "Payout Methods"
+
     def __str__(self):
-        return f"{self.user}'s {self.provider} Payout"
+        return f"{ self.user.email } - { self.provider } - { self.account_number }"
+    
+    def clean(self):
+        """Validate payout method based on provider requirements"""
+        if self.provider == 'chapa':
+            if not all([self.account_name, self.account_number, self.bank_code]):
+                raise ValidationError("Chapa requires account_name, account_number, and bank_code")
+        elif self.provider in ['mpesa', 'telebirr', 'webirr']:
+            if not self.phone_number:
+                raise ValidationError(f"{self.provider} requires phone_number")
+        # other are coming soon ..............
+            
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
