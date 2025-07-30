@@ -130,8 +130,11 @@ class ChapaProvider(BasePaymentProvider):
         Returns:
             Dict containing refund initiation response
         """
+        # Refund may not be instant. Chapa may return status: "pending". You should:
+        # Mark refund Payment as "pending" in DB.
+        # Update to "completed" when webhook confirms.
         try:
-            # verify original transaction
+            # verify original transaction - extra api call can be avoided.
             verification_url = f"{self.base_url}/transaction/verify/{provider_transaction_id}"
             headers = {
                 'Authorization': f'Bearer {self.secret_key}'
@@ -156,11 +159,10 @@ class ChapaProvider(BasePaymentProvider):
             
             payload = {
                 'reason': reason,
-                'amount': str(amount),
+                'amount': str(amount) if amount else None,
                 'meta': {
                     'customer_id': original_transaction.get('data', {}).get('customer', {}).get('email', ''),
                     'reference': f'REF-{provider_transaction_id}',
-                    'escrow_refund': True
                 }
             }
             
@@ -239,3 +241,167 @@ class ChapaProvider(BasePaymentProvider):
             logger.error(f"Error getting payment status: {str(e)}")
             return 'error'
 
+    def transfer_to_account(self, recipient, amount, **kwargs):
+        """
+        Transfer funds to freelancer's account via Chapa.
+        
+        Args:
+            recipient: Dict containing recipient payment method info
+            amount: Amount to transfer
+            **kwargs: Additional parameters
+            
+        Returns:
+            Dict containing transfer response
+        """
+        try:
+            url = f"{self.base_url}/transfers"
+            transfer_ref = f"freelancer-payment-{uuid.uuid4().hex[:10]}"
+            
+            payload = {
+                "account_name": recipient['account_name'],
+                "account_number": recipient['account_number'],
+                "amount": str(amount),
+                "currency": "ETB",
+                "reference": transfer_ref,
+                "bank_code": int(recipient['bank_code'])
+            }
+            
+            headers = {
+                'Authorization': f'Bearer {self.secret_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            logger.info(f"Initiating Chapa transfer: {amount} to {recipient.get('email', 'saved_method')}")
+            
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            logger.info(f"Initiating Chapa transfer: {amount} ETB to {recipient['account_name']} ({recipient['account_number']})")
+
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            logger.info(f"Chapa transfer initiated successfully. Reference: {transfer_ref}")
+
+            return {
+                'status': 'success',
+                'transfer_id': data.get('data', {}).get('transfer_id'),
+                'reference': transfer_ref,
+                'amount': str(amount),
+                'recipient': recipient['account_name'],
+                'message': 'Transfer initiated successfully'
+            }
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Chapa transfer API request failed: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Transfer request failed',
+                'error': str(e)
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error in Chapa transfer: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Transfer processing failed',
+                'error': str(e)
+            }
+        
+    def get_transfer_status(self, transfer_reference: str) -> dict:
+        """
+        Get the status of a transfer using the reference.
+        
+        Args:
+            transfer_reference: The reference used when initiating the transfer
+            
+        Returns:
+            Dict containing transfer status
+        """
+        try:
+            url = f"{self.base_url}/transfers/{transfer_reference}"
+            headers = {
+                'Authorization': f'Bearer {self.secret_key}'
+            }
+            
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            return {
+                'status': 'success',
+                'transfer_data': data.get('data', {}),
+                'status': data.get('data', {}).get('status', 'unknown')
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting transfer status: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
+
+    def get_banks(self) -> dict:
+        """
+        Get list of available banks from Chapa.
+        
+        Returns:
+            Dict containing banks list
+        """
+        try:
+            url = f"{self.base_url}/banks"
+            headers = {
+                'Authorization': f'Bearer {self.secret_key}'
+            }
+            
+            response = requests.get(url, headers=headers, data='')
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            return {
+                'status': 'success',
+                'banks': data.get('data', [])
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting banks: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
+    
+    def verify_transfer(self, transfer_reference):
+        """
+        Verify transfers after you initiated a transfer.
+
+        Args:
+            transfer_reference: The reference used when initiating the transfer
+
+        Returns:
+            Dict containing transfer status
+        """
+        try:
+            url = f'{self.base_url}/transfers/verify/{transfer_reference}'
+            headers = {
+                'Authorization': f'Bearer {self.secret_key}'
+            }
+
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+
+            data = response.json()
+
+            return {
+                'status': 'success',
+                'data': data
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
