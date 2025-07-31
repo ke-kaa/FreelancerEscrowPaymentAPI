@@ -85,4 +85,45 @@ class PaymentService:
             logger.error(f"Payment initiation failed: {str(e)}")
             return {'status': 'error', 'message': str(e)}
     
+    def verify_and_fund_escrow(self, tx_ref):
+        """
+        - Verifies payment with the same provider used to fund
+        - Updates escrow and payment records
+        """
+        try:
+            with transaction.atomic():
+                payment = Payment.objects.select_related("escrow", "escrow__project").get(provider_transactionn_id=tx_ref, transaction_type="funding")
+                # Verify payment with provider
+                is_verified = self.provider.verify(tx_ref)
+                
+                if is_verified:
+                    # Get payment record
+                    payment = Payment.objects.get(provider_transactionn_id=tx_ref)
+                    escrow = payment.escrow
+                    
+                    # Update escrow with funded amount
+                    escrow.funded_amount = payment.amount
+                    escrow.current_balance = payment.amount
+                    escrow.status = 'funded'
+                    escrow.save()
+                    
+                    # Update payment status
+                    payment.status = 'completed'
+                    payment.save()
+                    
+                    return {
+                        'status': 'success',
+                        'message': 'Escrow funded successfully',
+                        'escrow_id': escrow.id,
+                        'funded_amount': escrow.funded_amount,
+                        "available_balance": str(escrow.current_balance),
+                        "commission_amount": str(escrow.commission_amount)
+                    }
+                else:
+                    return {'status': 'error', 'message': 'Payment verification failed'}
+        except ObjectDoesNotExist:
+            return {"status": "error", "message": "Funding payment not found."}
+        except Exception as e:
+            logger.error(f"Escrow funding failed: {str(e)}")
+            return {'status': 'error', 'message': str(e)}
     
