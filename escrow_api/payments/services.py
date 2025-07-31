@@ -179,3 +179,33 @@ class PaymentService:
             "escrow_balance": str(escrow.current_balance),
         }
     
+    def transfer_to_freelancer(self, freelancer, amount, provider_name = None, **kwargs):
+        """
+        Transfer funds to freelancer's account using the specified provider.
+        """
+        provider, resolved_name = self._get_provider(provider_name)
+        
+        try:
+            payout_method = self._get_freelancer_payout_method(freelancer, resolved_name)
+
+            if not payout_method:
+                return {
+                    'status': 'error', 
+                    'message': f'No {resolved_name} payment method found for freelancer'
+                }
+            
+            # Call provider's transfer method 
+            transfer_result = provider.transfer_to_account(
+                recipient=payout_method,
+                amount=amount,
+                **kwargs
+            )
+            
+            return transfer_result
+                
+        except Exception as e:
+            logger.error(f"Transfer to freelancer failed: {str(e)}")
+            return {
+                'status': 'error',
+                'message': f'Transfer failed: {str(e)}'
+            }
