@@ -127,3 +127,55 @@ class PaymentService:
             logger.error(f"Escrow funding failed: {str(e)}")
             return {'status': 'error', 'message': str(e)}
     
+    def refund_to_client(self, escrow, amount = None, reason = "Project refund", provider_name = None):
+        """
+        - Refunds via the original funding provider by default
+        - If provider_name is passed, use that; else derive from funding payment
+        """
+        # Find the original funding payment
+        funding_payment = (
+            Payment.objects.filter(
+                escrow=escrow, transaction_type="funding", status="completed"
+            )
+            .order_by("-timestamp")
+            .first()
+        )
+        if not funding_payment:
+            return {"status": "error", "message": "No completed funding to refund from"}
+
+        provider, resolved_name = self._get_provider(provider_name or funding_payment.provider)
+        provider_tx_id = funding_payment.provider_transaction_id
+
+        # Default to current_balance if amount not provided
+        refund_amount = amount or escrow.current_balance
+        if refund_amount <= 0:
+            return {"status": "error", "message": "No available balance to refund"}
+
+        # Call provider refund (to original payment method)
+        result = provider.refund(provider_tx_id, refund_amount, reason=reason)
+
+        if result.get("status") != "success":
+            return {"status": "error", "message": result.get("message", "Refund failed")}
+
+        # Record refund
+        Payment.objects.create(
+            escrow=escrow,
+            user=escrow.project.client,
+            amount=refund_amount,
+            provider_transactionn_id=result.get("refund_id") or f"refund-{provider_tx_id}",
+            transaction_type="refund",
+            provider=resolved_name,
+            status="completed",
+        )
+
+        # Update escrow balance
+        escrow.current_balance -= refund_amount
+        escrow.save()
+
+        return {
+            "status": "success",
+            "message": "Refund processed",
+            "refund_amount": str(refund_amount),
+            "escrow_balance": str(escrow.current_balance),
+        }
+    
