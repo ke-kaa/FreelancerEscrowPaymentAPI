@@ -209,3 +209,34 @@ class PaymentService:
                 'status': 'error',
                 'message': f'Transfer failed: {str(e)}'
             }
+
+    def _get_freelancer_payout_method(self, freelancer, provider_name: str):
+        """
+        Get freelancer's preferred payment method for the given provider.
+        """
+        try:
+            # Look for freelancer's saved payment method for this provider
+            payout_method = PayoutMethod.objects.filter(
+                user=freelancer,
+                provider=provider_name,
+                is_default=True
+            ).first()
+
+            if not payout_method:
+                return None
+            
+            # Return formatted data for the provider
+            if provider_name == 'chapa':
+                return {
+                    'account_name': payout_method.account_name,
+                    'account_number': payout_method.account_number,
+                    'bank_code': payout_method.bank_code,
+                    'bank_name': payout_method.bank_name
+                }
+            # Shorty, we will add formatted data response for other provider methods shortly.
+            else:
+                return None
+            
+        except Exception as e:
+            logger.error(f"Error getting freelancer payment method: {str(e)}")
+            return None
