@@ -77,3 +77,41 @@ class EscrowService:
             logger.error(f"Escrow funding initiation failed: {str(e)}")
             return {"status": "error", "message": str(e)}
 
+    def verify_funding(self, *, tx_ref: str):
+        """Verify provider-side payment and mark escrow as funded."""
+        try:
+            with transaction.atomic():
+                payment = Payment.objects.select_related('escrow', 'escrow__project').get(
+                    provider_transactionn_id=tx_ref,
+                    transaction_type='funding',
+                )
+                provider_name = payment.provider
+                verified = self.payment_service.verify_payment(
+                    provider_name=provider_name,
+                    provider_transaction_id=tx_ref,
+                )
+                if not verified:
+                    return {"status": "error", "message": "Payment verification failed"}
+
+                escrow = payment.escrow
+                escrow.funded_amount = payment.amount
+                escrow.current_balance = payment.amount
+                escrow.status = 'funded'
+                escrow.save()
+
+                payment.status = 'completed'
+                payment.save()
+
+                return {
+                    'status': 'success',
+                    'message': 'Escrow funded successfully',
+                    'escrow_id': escrow.id,
+                    'funded_amount': str(escrow.funded_amount),
+                    'available_balance': str(escrow.current_balance),
+                    'commission_amount': str(escrow.commission_amount),
+                }
+        except Payment.DoesNotExist:
+            return {"status": "error", "message": "Funding payment not found"}
+        except Exception as e:
+            logger.error(f"Escrow verify funding failed: {str(e)}")
+            return {"status": "error", "message": str(e)}
