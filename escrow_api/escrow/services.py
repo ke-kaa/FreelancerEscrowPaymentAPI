@@ -247,3 +247,98 @@ class EscrowService:
         except Exception as e:
             logger.error(f"Escrow release failed: {str(e)}")
             return {'status': 'error', 'message': str(e)}
+
+    def verify_transfer_to_freelancer(self, *, provider_name: str, transfer_reference: str, success: bool, details: dict | None = None):
+        """
+        Finalize freelancer payout after provider confirmation (webhook).
+        """
+        try:
+            logger.info(
+                "Verifying freelancer transfer",
+                extra={
+                    'provider': provider_name,
+                    'transfer_reference': transfer_reference,
+                    'success': success,
+                }
+            )
+            with transaction.atomic():
+                payment = Payment.objects.select_related('escrow', 'escrow__project').get(
+                    provider_transactionn_id=transfer_reference,
+                    transaction_type='release',
+                    provider=provider_name,
+                )
+
+                escrow = payment.escrow
+                commission_payment = Payment.objects.filter(
+                    escrow=escrow,
+                    transaction_type='commission',
+                    provider=provider_name,
+                    provider_transactionn_id=f'commission-{payment.id}'
+                ).first()
+
+                if success:
+                    if payment.status == 'completed':
+                        return {
+                            'status': 'success',
+                            'message': 'Payout already processed',
+                            'escrow_id': escrow.id,
+                        }
+
+                    total_release = payment.amount
+                    if commission_payment:
+                        total_release += commission_payment.amount
+
+                    escrow.current_balance = max(Decimal('0'), escrow.current_balance - total_release)
+                    escrow.status = 'released' if escrow.current_balance == 0 else 'partially_released'
+                    escrow.save(update_fields=['current_balance', 'status'])
+
+                    payment.status = 'completed'
+                    payment.save(update_fields=['status'])
+
+                    if commission_payment:
+                        commission_payment.status = 'completed'
+                        commission_payment.save(update_fields=['status'])
+
+                    milestone_instance = payment.milestone
+                    if milestone_instance and not milestone_instance.is_paid:
+                        milestone_instance.is_paid = True
+                        milestone_instance.save(update_fields=['is_paid'])
+
+                    return {
+                        'status': 'success',
+                        'message': 'Freelancer payout confirmed',
+                        'escrow_id': escrow.id,
+                        'remaining_balance': str(escrow.current_balance),
+                        'milestone_id': milestone_instance.id if milestone_instance else None,
+                    }
+
+                # Handle failure scenario
+                if payment.status != 'failed':
+                    payment.status = 'failed'
+                    payment.save(update_fields=['status'])
+
+                if commission_payment and commission_payment.status != 'cancelled':
+                    commission_payment.status = 'cancelled'
+                    commission_payment.save(update_fields=['status'])
+
+                milestone_instance = payment.milestone
+                if milestone_instance and milestone_instance.is_paid:
+                    milestone_instance.is_paid = False
+                    milestone_instance.save(update_fields=['is_paid'])
+
+                if escrow.status == 'release_pending':
+                    escrow.status = 'funded'
+                    escrow.save(update_fields=['status'])
+
+                return {
+                    'status': 'error',
+                    'message': 'Freelancer payout failed',
+                    'escrow_id': escrow.id,
+                    'milestone_id': milestone_instance.id if milestone_instance else None,
+                }
+
+        except Payment.DoesNotExist:
+            return {'status': 'error', 'message': 'Release payment not found'}
+        except Exception as e:
+            logger.error(f"Verify transfer failed: {str(e)}")
+            return {'status': 'error', 'message': str(e)}
