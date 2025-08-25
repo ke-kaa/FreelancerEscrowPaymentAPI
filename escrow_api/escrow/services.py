@@ -342,3 +342,67 @@ class EscrowService:
         except Exception as e:
             logger.error(f"Verify transfer failed: {str(e)}")
             return {'status': 'error', 'message': str(e)}
+
+    def refund(self, *, user, escrow: EscrowTransaction, amount=None, reason="Project refund", provider_name=None):
+        """
+        Orchestrate refunds to client.
+        - Only project client (owner) can request refund; admins/moderators could be added here.
+        - Disallows refund if escrow is locked/disputed unless resolved by moderator.
+        Delegates provider refund to PaymentService.
+        """
+        if escrow.is_locked:
+            return {"status": "error", "message": "Escrow is locked due to dispute"}
+        if user.id != escrow.project.client_id:
+            return {"status": "error", "message": "Only the project client can request a refund"}
+
+        try:
+            with transaction.atomic():
+                # Find original funding payment
+                funding_payment = (
+                    Payment.objects.filter(
+                        escrow=escrow, transaction_type='funding', status='completed'
+                    ).order_by('-timestamp').first()
+                )
+                if not funding_payment:
+                    return {"status": "error", "message": "No completed funding to refund from"}
+
+                provider = provider_name or funding_payment.provider
+                provider_tx_id = funding_payment.provider_transactionn_id
+
+                refund_amount = amount or escrow.current_balance
+                if refund_amount <= 0:
+                    return {"status": "error", "message": "No available balance to refund"}
+
+                result = self.payment_service.refund(
+                    provider_name=provider,
+                    provider_transaction_id=provider_tx_id,
+                    amount=refund_amount,
+                    reason=reason,
+                )
+                if result.get('status') != 'success':
+                    return {"status": "error", "message": result.get('message', 'Refund failed')}
+
+                Payment.objects.create(
+                    escrow=escrow,
+                    user=escrow.project.client,
+                    amount=refund_amount,
+                    provider_transactionn_id=result.get('refund_id') or f'refund-{provider_tx_id}',
+                    transaction_type='refund',
+                    provider=provider,
+                    status='completed',
+                )
+
+                escrow.current_balance -= refund_amount
+                if escrow.current_balance == 0:
+                    escrow.status = 'refunded'
+                escrow.save()
+
+                return {
+                    'status': 'success',
+                    'message': 'Refund processed',
+                    'refund_amount': str(refund_amount),
+                    'escrow_balance': str(escrow.current_balance),
+                }
+        except Exception as e:
+            logger.error(f"Refund orchestration failed: {str(e)}")
+            return {"status": "error", "message": str(e)}
