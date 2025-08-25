@@ -472,3 +472,22 @@ class EscrowService:
         except Exception as e:
             logger.error(f"Close dispute failed: {str(e)}")
             return {"status": "error", "message": str(e)}
+
+
+
+
+    @staticmethod
+    def can_manage_escrow(user, escrow: EscrowTransaction) -> bool:
+        return user.id in (escrow.project.client_id, getattr(escrow.project.freelancer, 'id', None))
+
+    @staticmethod
+    def is_client(user, escrow: EscrowTransaction) -> bool:
+        return user.id == escrow.project.client_id
+
+    @staticmethod
+    def is_freelancer(user, escrow: EscrowTransaction) -> bool:
+        return getattr(escrow.project.freelancer, 'id', None) == user.id
+
+    def audit(self, action: str, *, escrow: EscrowTransaction = None, extra: dict = None):
+        payload = {"escrow_id": getattr(escrow, 'id', None), **(extra or {})}
+        logger.info(f"AUDIT {action}: {payload}")
