@@ -439,3 +439,36 @@ class EscrowService:
         except Exception as e:
             logger.error(f"Open dispute failed: {str(e)}")
             return {"status": "error", "message": str(e)}
+
+    def resolve_dispute(self, *, dispute: Dispute, resolved_by, resolution: str = ""):
+        """
+        Resolve a dispute (moderator path). Unlock escrow; caller can then proceed to partial refund/release.
+        """
+        try:
+            with transaction.atomic():
+                dispute.status = 'resolved'
+                dispute.resolution = resolution
+                dispute.resolved_by = resolved_by
+                dispute.save()
+
+                escrow = EscrowTransaction.objects.filter(project=dispute.project).first()
+                if escrow and escrow.is_locked:
+                    escrow.is_locked = False
+                    escrow.save()
+
+                return {"status": "success", "message": "Dispute resolved"}
+        except Exception as e:
+            logger.error(f"Resolve dispute failed: {str(e)}")
+            return {"status": "error", "message": str(e)}
+
+    def close_dispute(self, *, dispute: Dispute, closed_by):
+        """Close a resolved dispute and keep record."""
+        try:
+            if dispute.status != 'resolved':
+                return {"status": "error", "message": "Dispute must be resolved before closing"}
+            dispute.status = 'closed'
+            dispute.save()
+            return {"status": "success", "message": "Dispute closed"}
+        except Exception as e:
+            logger.error(f"Close dispute failed: {str(e)}")
+            return {"status": "error", "message": str(e)}
