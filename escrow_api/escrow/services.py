@@ -406,3 +406,36 @@ class EscrowService:
         except Exception as e:
             logger.error(f"Refund orchestration failed: {str(e)}")
             return {"status": "error", "message": str(e)}
+
+    def open_dispute(self, *, project, raised_by, dispute_type="other", reason=""):
+        """
+        Open a dispute and lock the related escrow.
+        - Either client or freelancer can open a dispute on the project.
+        """
+        try:
+            if raised_by.id not in (project.client_id, getattr(project.freelancer, 'id', None)):
+                return {"status": "error", "message": "Only project participants can open a dispute"}
+
+            if hasattr(project, 'dispute'):
+                return {"status": "error", "message": "A dispute already exists for this project"}
+
+            with transaction.atomic():
+                dispute = Dispute.objects.create(
+                    project=project,
+                    raised_by=raised_by,
+                    dispute_type=dispute_type,
+                    reason=reason,
+                    status='open',
+                )
+
+                # Lock escrow
+                escrow = EscrowTransaction.objects.filter(project=project).first()
+                if escrow and not escrow.is_locked:
+                    escrow.is_locked = True
+                    escrow.status = 'disputed'
+                    escrow.save()
+
+                return {"status": "success", "dispute_id": dispute.id}
+        except Exception as e:
+            logger.error(f"Open dispute failed: {str(e)}")
+            return {"status": "error", "message": str(e)}
