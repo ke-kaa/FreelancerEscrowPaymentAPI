@@ -36,3 +36,23 @@ class EscrowTransactionListView(generics.ListAPIView):
 		return queryset.none()
 
 
+class EscrowTransactionDetailView(generics.RetrieveAPIView):
+	serializer_class = EscrowTransactionSerializer
+	permission_classes = [permissions.IsAuthenticated]
+	queryset = EscrowTransaction.objects.select_related(
+		"project",
+		"project__client",
+		"project__freelancer",
+	).prefetch_related("payments")
+
+	def check_object_permissions(self, request, obj):
+		super().check_object_permissions(request, obj)
+		if request.user.is_staff:
+			return
+		user_type = getattr(request.user, "user_type", None)
+		if user_type == "client" and obj.project.client_id == request.user.id:
+			return
+		if user_type == "freelancer" and obj.project.freelancer_id == request.user.id:
+			return
+		self.permission_denied(request, message="Not authorised to access this escrow.")
+
