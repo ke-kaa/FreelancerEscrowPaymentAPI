@@ -54,3 +54,43 @@ class EscrowTransactionSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
+
+
+class EscrowReleaseSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        required=False,
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+
+    def validate(self, attrs):
+        escrow: EscrowTransaction = self.context["escrow"]
+        amount = attrs.get("amount", escrow.current_balance)
+
+        if amount is None:
+            amount = escrow.current_balance
+        if amount <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero.")
+        if amount > escrow.current_balance:
+            raise serializers.ValidationError("Amount exceeds available escrow balance.")
+        attrs["amount"] = amount
+        return attrs
+
+
+class EscrowLockSerializer(serializers.Serializer):
+    """Serializer to lock or unlock an escrow (e.g., during disputes)."""
+
+    is_locked = serializers.BooleanField()
+
+    def update(self, instance: EscrowTransaction, validated_data):
+        instance.is_locked = validated_data["is_locked"]
+        instance.save(update_fields=["is_locked"])
+        return instance
+
+    def to_representation(self, instance):
+        return {
+            "id": instance.id,
+            "is_locked": instance.is_locked,
+            "status": instance.status,
+        }
