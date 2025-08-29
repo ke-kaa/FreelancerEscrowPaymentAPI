@@ -81,3 +81,14 @@ class EscrowReleaseFundsView(views.APIView):
 		http_status = status.HTTP_200_OK if result.get("status") == "success" else status.HTTP_400_BAD_REQUEST
 		return Response(result, status=http_status)
 
+
+
+class EscrowLockToggleView(views.APIView):
+	permission_classes = [permissions.IsAdminUser]
+
+	def patch(self, request, pk):
+		escrow = get_object_or_404(EscrowTransaction, pk=pk)
+		serializer = EscrowLockSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		serializer.update(escrow, serializer.validated_data)
+		return Response(serializer.to_representation(escrow), status=status.HTTP_200_OK)
