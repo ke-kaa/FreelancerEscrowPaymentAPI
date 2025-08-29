@@ -69,3 +69,14 @@ class StripePayoutMethodCreateSerializer(serializers.Serializer):
             details = StripePayoutMethod.objects.create(payout_method=base, **validated_data)
         return base
 
+
+class SetPayoutMethodFlagsSerializer(serializers.Serializer):
+    is_default = serializers.BooleanField(required=False)
+    is_active = serializers.BooleanField(required=False)
+
+
+class BankSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bank
+        fields = ['code', 'name', 'country']
+
