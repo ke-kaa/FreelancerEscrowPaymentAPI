@@ -139,3 +139,29 @@ class ChapaWebhookSerializer(serializers.Serializer):
         return attrs
 
 
+class StripeWebhookSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    type = serializers.CharField()
+    data = serializers.JSONField()
+
+    def validate(self, attrs):
+        event_type = attrs['type']
+        event_object = attrs['data'].get('object', {}) if attrs.get('data') else {}
+        payment_intent_id = None
+        transfer_id = None
+
+        if event_type.startswith('payment_intent'):
+            payment_intent_id = event_object.get('id') or event_object.get('payment_intent')
+            if not payment_intent_id:
+                raise serializers.ValidationError('Missing payment_intent id in webhook payload')
+
+        if event_type.startswith('transfer') or event_type.startswith('payout'):
+            transfer_id = event_object.get('id')
+            if not transfer_id:
+                raise serializers.ValidationError('Missing transfer id in webhook payload')
+
+        attrs['payment_intent_id'] = payment_intent_id
+        attrs['transfer_id'] = transfer_id
+        attrs['object_status'] = event_object.get('status')
+        return attrs
+
