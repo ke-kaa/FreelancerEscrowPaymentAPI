@@ -21,3 +21,25 @@ class FundingInitiateSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     provider_name = serializers.CharField()
 
+
+class FundingVerifySerializer(serializers.Serializer):
+    tx_ref = serializers.CharField()
+
+
+class ReleaseFundsSerializer(serializers.Serializer):
+    escrow_id = serializers.IntegerField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    milestone_id = serializers.IntegerField(required=False)
+
+
+class RefundSerializer(serializers.Serializer):
+    escrow_id = serializers.IntegerField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class PayoutMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PayoutMethod
+        fields = ['id', 'provider', 'is_default', 'is_verified', 'is_active', 'created_at', 'updated_at']
+
