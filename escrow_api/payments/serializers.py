@@ -43,3 +43,29 @@ class PayoutMethodSerializer(serializers.ModelSerializer):
         model = PayoutMethod
         fields = ['id', 'provider', 'is_default', 'is_verified', 'is_active', 'created_at', 'updated_at']
 
+class ChapaPayoutMethodCreateSerializer(serializers.Serializer):
+    account_name = serializers.CharField()
+    account_number = serializers.CharField()
+    bank_code = serializers.CharField()
+    bank_name = serializers.CharField(required=False, allow_blank=True)
+    is_default = serializers.BooleanField(default=False)
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        with transaction.atomic():
+            base = PayoutMethod.objects.create(user=user, provider='chapa', is_default=validated_data.pop('is_default', False))
+            details = ChapaPayoutMethod.objects.create(payout_method=base, **validated_data)
+        return base
+
+
+class StripePayoutMethodCreateSerializer(serializers.Serializer):
+    stripe_account_id = serializers.CharField()
+    is_default = serializers.BooleanField(default=False)
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        with transaction.atomic():
+            base = PayoutMethod.objects.create(user=user, provider='stripe', is_default=validated_data.pop('is_default', False))
+            details = StripePayoutMethod.objects.create(payout_method=base, **validated_data)
+        return base
+
