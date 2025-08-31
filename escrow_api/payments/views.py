@@ -104,3 +104,35 @@ class EscrowDetailView(APIView):
         escrow = get_object_or_404(EscrowTransaction, id=escrow_id)
         data = EscrowTransactionSerializer(escrow).data
         return Response(data)
+
+
+class EscrowPaymentsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, escrow_id):
+        escrow = get_object_or_404(EscrowTransaction, id=escrow_id)
+        payments = Payment.objects.filter(escrow=escrow).order_by('-timestamp')
+        data = PaymentSerializer(payments, many=True).data
+        return Response(data)
+
+
+class PayoutMethodListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        methods = PayoutMethod.objects.filter(user=request.user).order_by('-is_default', '-created_at')
+        data = PayoutMethodSerializer(methods, many=True).data
+        return Response(data)
+
+    def post(self, request):
+        provider = request.data.get('provider')
+        if provider == 'chapa':
+            serializer = ChapaPayoutMethodCreateSerializer(data=request.data, context={'request': request})
+        elif provider == 'stripe':
+            serializer = StripePayoutMethodCreateSerializer(data=request.data, context={'request': request})
+        else:
+            return Response({'detail': 'Unsupported provider'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        method = serializer.save()
+        return Response(PayoutMethodSerializer(method).data, status=status.HTTP_201_CREATED)
+
