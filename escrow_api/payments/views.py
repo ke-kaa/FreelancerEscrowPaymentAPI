@@ -164,3 +164,18 @@ class ChapaBanksView(APIView):
         if res.get('status') == 'success':
             return Response({'banks': res.get('banks', [])})
         return Response(res, status=status.HTTP_400_BAD_REQUEST)
+
+
+class StripeOnboardingLinkView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from .providers.stripe import StripeProvider
+        account_id = request.data.get('stripe_account_id')
+        provider = StripeProvider()
+        if not account_id:
+            return Response({'detail': 'stripe_account_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        link = provider.get_account_link(account_id)
+        code = status.HTTP_200_OK if link.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
+        return Response(link, status=code)
+
