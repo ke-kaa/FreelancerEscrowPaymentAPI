@@ -136,3 +136,31 @@ class PayoutMethodListCreateView(APIView):
         method = serializer.save()
         return Response(PayoutMethodSerializer(method).data, status=status.HTTP_201_CREATED)
 
+
+class PayoutMethodDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, method_id):
+        method = get_object_or_404(PayoutMethod, id=method_id, user=request.user)
+        serializer = SetPayoutMethodFlagsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        for field, value in serializer.validated_data.items():
+            setattr(method, field, value)
+        method.save()
+        return Response(PayoutMethodSerializer(method).data)
+
+    def delete(self, request, method_id):
+        method = get_object_or_404(PayoutMethod, id=method_id, user=request.user)
+        method.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChapaBanksView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        provider = get_payment_provider('chapa')
+        res = provider.get_banks()
+        if res.get('status') == 'success':
+            return Response({'banks': res.get('banks', [])})
+        return Response(res, status=status.HTTP_400_BAD_REQUEST)
