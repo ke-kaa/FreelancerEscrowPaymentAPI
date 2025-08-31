@@ -47,3 +47,35 @@ class InitiateFundingView(APIView):
         return Response(result, status=code)
 
 
+class VerifyFundingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = FundingVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        escrow_service = EscrowService()
+        result = escrow_service.verify_funding(tx_ref=serializer.validated_data['tx_ref'])
+        code = status.HTTP_200_OK if result.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
+        return Response(result, status=code)
+
+
+class ReleaseFundsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ReleaseFundsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        escrow = get_object_or_404(EscrowTransaction, id=serializer.validated_data['escrow_id'])
+        escrow_service = EscrowService()
+        # ownership check (client only)
+        if request.user.id != escrow.project.client_id:
+            return Response({'status': 'error', 'message': 'Only the project client can release funds'}, status=status.HTTP_403_FORBIDDEN)
+        # Enqueue async transfer
+        task_transfer_to_freelancer.delay(
+            escrow.id,
+            str(serializer.validated_data.get('amount') or ''),
+            serializer.validated_data.get('milestone_id')
+        )
+        result = {'status': 'success', 'message': 'Payout queued'}
+        code = status.HTTP_200_OK if result.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
+        return Response(result, status=code)
