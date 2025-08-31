@@ -179,3 +179,78 @@ class StripeOnboardingLinkView(APIView):
         code = status.HTTP_200_OK if link.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
         return Response(link, status=code)
 
+
+class StripeWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = StripeWebhookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        event_id = serializer.validated_data['id']
+
+        if WebhookEvent.objects.filter(provider='stripe', event_id=event_id).exists():
+            return Response({'status': 'duplicate'})
+
+        event_type = serializer.validated_data['type']
+        payment_intent_id = serializer.validated_data.get('payment_intent_id')
+        transfer_id = serializer.validated_data.get('transfer_id')
+
+        result = {'status': 'ignored', 'message': f'Unhandled event {event_type}'}
+
+        if event_type == 'payment_intent.succeeded' and payment_intent_id:
+            escrow_service = EscrowService()
+            verification = escrow_service.verify_funding(tx_ref=payment_intent_id)
+            result = {
+                'status': verification.get('status'),
+                'message': verification.get('message'),
+                'escrow_id': verification.get('escrow_id'),
+            }
+        elif event_type == 'payment_intent.payment_failed' and payment_intent_id:
+            payment = Payment.objects.filter(
+                provider_transactionn_id=payment_intent_id,
+                provider='stripe',
+            ).first()
+            if payment:
+                payment.status = 'failed'
+                payment.save(update_fields=['status'])
+                result = {
+                    'status': 'failed',
+                    'message': 'Payment marked as failed',
+                    'payment_id': payment.id,
+                }
+        elif event_type.startswith('transfer') and transfer_id:
+            success_events = {'transfer.paid', 'transfer.succeeded', 'transfer.completed'}
+            failure_events = {'transfer.failed', 'transfer.canceled', 'transfer.reversed'}
+            if event_type in success_events or event_type in failure_events:
+                logger.info(
+                    "Processing Stripe transfer webhook",
+                    extra={'transfer_id': transfer_id, 'event_type': event_type}
+                )
+                escrow_service = EscrowService()
+                verification = escrow_service.verify_transfer_to_freelancer(
+                    provider_name='stripe',
+                    transfer_reference=transfer_id,
+                    success=event_type in success_events,
+                    details=request.data,
+                )
+                result = verification
+        elif event_type.startswith('payout') and transfer_id:
+            # Some Stripe accounts may emit payout.* events instead of transfer.*
+            success_events = {'payout.paid', 'payout.succeeded'}
+            failure_events = {'payout.failed', 'payout.canceled'}
+            if event_type in success_events or event_type in failure_events:
+                logger.info(
+                    "Processing Stripe payout webhook",
+                    extra={'transfer_id': transfer_id, 'event_type': event_type}
+                )
+                escrow_service = EscrowService()
+                verification = escrow_service.verify_transfer_to_freelancer(
+                    provider_name='stripe',
+                    transfer_reference=transfer_id,
+                    success=event_type in success_events,
+                    details=request.data,
+                )
+                result = verification
+
+        WebhookEvent.objects.create(provider='stripe', event_id=event_id)
+        return Response(result)
