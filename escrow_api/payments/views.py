@@ -79,3 +79,28 @@ class ReleaseFundsView(APIView):
         result = {'status': 'success', 'message': 'Payout queued'}
         code = status.HTTP_200_OK if result.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
         return Response(result, status=code)
+
+
+
+class RefundView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = RefundSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        escrow = get_object_or_404(EscrowTransaction, id=serializer.validated_data['escrow_id'])
+        escrow_service = EscrowService()
+        # Enqueue async refund
+        task_refund_to_client.delay(escrow.id, str(serializer.validated_data.get('amount') or ''), serializer.validated_data.get('reason', 'Project refund'))
+        result = {'status': 'success', 'message': 'Refund queued'}
+        code = status.HTTP_200_OK if result.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
+        return Response(result, status=code)
+
+
+class EscrowDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, escrow_id):
+        escrow = get_object_or_404(EscrowTransaction, id=escrow_id)
+        data = EscrowTransactionSerializer(escrow).data
+        return Response(data)
