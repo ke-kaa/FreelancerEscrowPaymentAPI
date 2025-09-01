@@ -254,3 +254,79 @@ class StripeWebhookView(APIView):
 
         WebhookEvent.objects.create(provider='stripe', event_id=event_id)
         return Response(result)
+
+
+class ChapaWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = ChapaWebhookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        event_id = serializer.validated_data['event_id']
+
+        if WebhookEvent.objects.filter(provider='chapa', event_id=event_id).exists():
+            return Response({'status': 'duplicate'})
+
+        tx_ref = serializer.validated_data.get('tx_ref')
+        transfer_reference = serializer.validated_data.get('transfer_reference')
+        status_value = serializer.validated_data.get('normalized_status', '')
+        event_type = serializer.validated_data.get('event_type', '')
+
+        result = {'status': 'ignored', 'message': 'Event does not indicate success'}
+
+        success_statuses = {'success', 'completed', 'paid'}
+        failure_statuses = {'failed', 'declined', 'expired', 'cancelled'}
+
+        if transfer_reference:
+            success_event_markers = {'transfer.success', 'transfer.completed', 'transfer.paid'}
+            failure_event_markers = {'transfer.failed', 'transfer.cancelled', 'transfer.reversed'}
+
+            if status_value in success_statuses or event_type in success_event_markers:
+                success_flag = True
+            elif status_value in failure_statuses or event_type in failure_event_markers:
+                success_flag = False
+            else:
+                success_flag = None
+
+            if success_flag is not None:
+                logger.info(
+                    "Processing Chapa transfer webhook",
+                    extra={
+                        'transfer_reference': transfer_reference,
+                        'status_value': status_value,
+                        'event_type': event_type,
+                        'success': success_flag,
+                    }
+                )
+                escrow_service = EscrowService()
+                verification = escrow_service.verify_transfer_to_freelancer(
+                    provider_name='chapa',
+                    transfer_reference=transfer_reference,
+                    success=success_flag,
+                    details=request.data,
+                )
+                result = verification
+        elif tx_ref and status_value in success_statuses:
+            escrow_service = EscrowService()
+            verification = escrow_service.verify_funding(tx_ref=tx_ref)
+            result = {
+                'status': verification.get('status'),
+                'message': verification.get('message'),
+                'escrow_id': verification.get('escrow_id'),
+            }
+        elif tx_ref and status_value in failure_statuses:
+            payment = Payment.objects.filter(
+                provider_transactionn_id=tx_ref,
+                provider='chapa',
+            ).first()
+            if payment:
+                payment.status = 'failed'
+                payment.save(update_fields=['status'])
+                result = {
+                    'status': 'failed',
+                    'message': 'Payment marked as failed',
+                    'payment_id': payment.id,
+                }
+
+        WebhookEvent.objects.create(provider='chapa', event_id=event_id)
+        return Response(result)
