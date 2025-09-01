@@ -97,3 +97,29 @@ class StripeProvider(BasePaymentProvider):
         #     'transfer_id': event_data.get('id'),
         #     'amount': event_data.get('amount')
         # }
+
+    def verify(self, provider_transaction_id):
+        """
+        Verify a Stripe Payment Intent.
+        
+        Args:
+            provider_transaction_id: Payment Intent ID
+            
+        Returns:
+            bool: True if payment is successful
+        """
+        try:
+            intent = stripe.PaymentIntent.retrieve(provider_transaction_id)
+            
+            is_successful = intent.status == 'succeeded'
+            
+            logger.info(f"Stripe payment verification result: {is_successful} for intent {provider_transaction_id}")
+            return is_successful
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe verification error: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error in Stripe verify: {str(e)}")
+            return False
+  
