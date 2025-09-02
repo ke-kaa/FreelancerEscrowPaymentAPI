@@ -216,3 +216,59 @@ class StripeProvider(BasePaymentProvider):
         except Exception as e:
             logger.error(f"Unexpected error getting payment status: {str(e)}")
             return 'error'
+
+    def transfer_to_account(self, recipient, amount , **kwargs):
+        """
+        Transfer funds to freelancer's account via Stripe Connect.
+        
+        Args:
+            recipient: Dict containing recipient account details
+            amount: Amount to transfer
+            **kwargs: Additional parameters
+            
+        Returns:
+            Dict containing transfer response
+        """
+        try:
+            # Convert amount to cents
+            amount_cents = int(amount * 100)
+            
+            # Create transfer to connected account
+            transfer = stripe.Transfer.create(
+                amount=amount_cents,
+                currency=self.currency,
+                destination=recipient['stripe_account_id'],
+                metadata={
+                    'freelancer_id': str(recipient.get('user_id', '')),
+                    'project_title': kwargs.get('project_title', ''),
+                    'escrow_payout': 'true',
+                    'transfer_reference': f'freelancer-payment-{uuid.uuid4().hex[:10]}'
+                },
+                description=f"Payment for project: {kwargs.get('project_title', 'Unknown Project')}"
+            )
+            
+            logger.info(f"Stripe transfer created: {transfer.id} to account {recipient['stripe_account_id']}")
+            
+            return {
+                'status': 'success',
+                'transfer_id': transfer.id,
+                'amount': str(amount),
+                'recipient': recipient.get('account_name', 'Connected Account'),
+                'message': 'Transfer completed successfully'
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe transfer error: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Transfer failed',
+                'error': str(e)
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error in Stripe transfer: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Transfer processing failed',
+                'error': str(e)
+            }
+    
