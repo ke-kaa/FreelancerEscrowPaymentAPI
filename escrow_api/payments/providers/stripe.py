@@ -295,3 +295,39 @@ class StripeProvider(BasePaymentProvider):
             logger.error("Invalid Stripe webhook signature")
             return False
     
+    def process_webhook(self, payload):
+        """
+        Process Stripe webhook payload.
+        
+        Args:
+            payload: Parsed webhook payload
+            
+        Returns:
+            Dict containing processing result
+        """
+        try:
+            event_type = payload.get('type')
+            event_data = payload.get('data', {}).get('object', {})
+            
+            logger.info(f"Processing Stripe webhook: {event_type}")
+            
+            if event_type == 'payment_intent.succeeded':
+                return self._handle_payment_success(event_data)
+            elif event_type == 'payment_intent.payment_failed':
+                return self._handle_payment_failure(event_data)
+            elif event_type == 'transfer.created':
+                return self._handle_transfer_created(event_data)
+            else:
+                return {
+                    'status': 'processed',
+                    'message': f'Webhook {event_type} processed',
+                    'event_type': event_type
+                }
+                
+        except Exception as e:
+            logger.error(f"Error processing Stripe webhook: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
+    
