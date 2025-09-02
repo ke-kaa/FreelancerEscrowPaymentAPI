@@ -331,3 +331,52 @@ class StripeProvider(BasePaymentProvider):
                 'message': str(e)
             }
     
+    def _handle_payment_success(self, event_data):
+        """Handle payment success with database updates"""
+        try:
+            payment_intent_id = event_data.get('id')
+            amount = event_data.get('amount')
+            metadata = event_data.get('metadata', {})
+            
+            # Find the corresponding Payment record
+            payment = Payment.objects.filter(
+                provider_transactionn_id=payment_intent_id,
+                provider='stripe'
+            ).first()
+            
+            if not payment:
+                logger.warning(f"Payment not found for intent {payment_intent_id}")
+                return {
+                    'status': 'warning',
+                    'message': 'Payment record not found'
+                }
+            
+            # Update payment status
+            payment.status = 'completed'
+            payment.save()
+            
+            # Update escrow if this is a funding payment
+            if payment.transaction_type == 'funding':
+                escrow = payment.escrow
+                escrow.funded_amount = payment.amount
+                escrow.current_balance = payment.amount
+                escrow.status = 'funded'
+                escrow.save()
+            
+            # Mark event as processed
+            self._mark_event_processed(event_id)
+            
+            return {
+                'status': 'success',
+                'message': 'Payment processed successfully',
+                'payment_id': payment.id,
+                'escrow_id': payment.escrow.id if payment.escrow else None
+            }
+            
+        except Exception as e:
+            logger.error(f"Error handling payment success: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
+       
