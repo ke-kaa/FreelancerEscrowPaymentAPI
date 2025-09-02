@@ -272,3 +272,26 @@ class StripeProvider(BasePaymentProvider):
                 'error': str(e)
             }
     
+    def validate_webhook(self, payload, signature):
+        """
+        Validate Stripe webhook signature.
+        
+        Args:
+            payload: Raw webhook payload
+            signature: Stripe signature header
+            
+        Returns:
+            bool: True if webhook is valid
+        """
+        try:
+            stripe.Webhook.construct_event(
+                payload, signature, self.webhook_secret
+            )
+            return True
+        except ValueError:
+            logger.error("Invalid Stripe webhook payload")
+            return False
+        except stripe.error.SignatureVerificationError:
+            logger.error("Invalid Stripe webhook signature")
+            return False
+    
