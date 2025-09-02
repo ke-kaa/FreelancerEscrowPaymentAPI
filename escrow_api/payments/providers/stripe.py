@@ -195,3 +195,24 @@ class StripeProvider(BasePaymentProvider):
                 'message': 'Refund processing failed',
                 'error': str(e)
             }
+
+    def get_payment_status(self, provider_transaction_id):
+        """
+        Get payment status from Stripe.
+        
+        Args:
+            provider_transaction_id: Payment Intent ID
+            
+        Returns:
+            str: Payment status
+        """
+        try:
+            intent = stripe.PaymentIntent.retrieve(provider_transaction_id)
+            return intent.status
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Error getting Stripe payment status: {str(e)}")
+            return 'error'
+        except Exception as e:
+            logger.error(f"Unexpected error getting payment status: {str(e)}")
+            return 'error'
