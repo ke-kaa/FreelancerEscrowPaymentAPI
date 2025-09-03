@@ -21,9 +21,25 @@ class CustomTokenObtainPairView(jwt_views.TokenObtainPairView):
 
 
 class RegistrationAPIView(generics.CreateAPIView):
+    """
+    Handles new user registration.
+
+    Accepts a POST request with user details:
+        - email, password, confirm_password, first_name, last_name, country (required)
+        - user_type, phone_number (optional)
+    Creates a new user, and returns the user's data along with JWT access and
+    refresh tokens.
+    """
     serializer_class = my_serializers.RegistrationSerializer
     permission_classes = [permissions.AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Register a new user",
+        responses={
+            201: my_serializers.RegistrationSerializer,
+            400: "Invalid input"
+        }
+    )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -40,23 +56,43 @@ class RegistrationAPIView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED
         )
-    
+
 
 class UserProfileRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
+    """
+    Allows authenticated users to retrieve and update their own profile.
+
+    GET: Returns the profile of the currently authenticated user.
+    PUT/PATCH: Updates the user's profile. The following fields are editable:
+        - first_name, last_name, phone_number, country
+    The 'id', 'email', and 'user_type' fields are read-only.
+    """
     serializer_class = my_serializers.UserProfileSerializer
     authentication_classes = [authentication.JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(operation_summary="Retrieve user profile")
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_summary="Update user profile")
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_summary="Partially update user profile")
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
     def get_object(self):
         return self.request.user
-    
 
-@swagger_auto_schema(method="post", request_body=my_serializers.ChangePasswordSerializer)
+
 class ChangePasswordAPIView(drf_Views.APIView):
     serializer_class = my_serializers.ChangePasswordSerializer
     authentication_classes = [authentication.JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(request_body=my_serializers.ChangePasswordSerializer)
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid(raise_exception=True):
@@ -67,10 +103,10 @@ class ChangePasswordAPIView(drf_Views.APIView):
         return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
 
 
-@swagger_auto_schema(method="post", request_body=my_serializers.LogoutSerializer)
 class LogoutAPIView(drf_Views.APIView):
     permission_classes = [permissions.IsAuthenticated]
     
+    @swagger_auto_schema(request_body=my_serializers.LogoutSerializer)
     def post(self, request):
         serializer = my_serializers.LogoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -82,7 +118,6 @@ class LogoutAPIView(drf_Views.APIView):
         )
     
 
-@swagger_auto_schema(method="post", request_body=my_serializers.PasswordResetRequestSerializer)
 class PasswordResetRequestAPIView(generics.GenericAPIView):
     '''
     Accepts POST request with user's email.
@@ -94,6 +129,7 @@ class PasswordResetRequestAPIView(generics.GenericAPIView):
     throttle_classes = [AnonRateThrottle,UserRateThrottle]
     permission_classes=[permissions.AllowAny]
 
+    @swagger_auto_schema(request_body=my_serializers.PasswordResetRequestSerializer)
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -108,13 +144,13 @@ class PasswordResetRequestAPIView(generics.GenericAPIView):
         )
 
 
-@swagger_auto_schema(method="post", request_body=my_serializers.PasswordResetConfirmSerializer)
 class PasswordResetConfirmAPIView(generics.GenericAPIView):
     '''
     Accepts POST request with uidb65, token, new_password, confirm_password'''
     serializer_class = my_serializers.PasswordResetConfirmSerializer
     permission_classes = [permissions.AllowAny]
 
+    @swagger_auto_schema(request_body=my_serializers.PasswordResetConfirmSerializer)
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -167,12 +203,13 @@ class UserDeleteAPIView(generics.UpdateAPIView):
             'detail': "Account deleted."
         }, status=status.HTTP_200_OK)
 
-@swagger_auto_schema(method="post", request_body=my_serializers.ReactivationRequestSerializer)
+
 class ReactivationRequestAPIView(generics.GenericAPIView):
     serializer_class = my_serializers.ReactivationRequestSerializer
     permission_classes = [my_permissions.CanReactivate]
     throttle_classes = [throttles.EmailRateThrottle, AnonRateThrottle]
 
+    @swagger_auto_schema(request_body=my_serializers.ReactivationRequestSerializer)
     def post(self, request):
         seriailzer = self.get_serializer(data=request.data)
         seriailzer.is_valid(raise_exception=True)
@@ -186,11 +223,11 @@ class ReactivationRequestAPIView(generics.GenericAPIView):
         }, status=status.HTTP_200_OK)
         
 
-@swagger_auto_schema(method="post", request_body=my_serializers.AccountReactivationConfrimSerailizer)
 class AccountReactivationConfirmAPIView(generics.GenericAPIView):
     serializer_class = my_serializers.AccountReactivationConfrimSerailizer
     permission_classes = []
 
+    @swagger_auto_schema(request_body=my_serializers.AccountReactivationConfrimSerailizer)
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
