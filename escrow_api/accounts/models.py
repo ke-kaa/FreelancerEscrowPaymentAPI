@@ -6,6 +6,9 @@ from auditlog.models import AuditlogHistoryField
 
 
 class CustomUserManager(BaseUserManager):
+    """
+    Manager for CustomUser. Handles user and superuser creation using email as the unique identifier.
+    """
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("Email is required.")
@@ -24,11 +27,19 @@ class CustomUserManager(BaseUserManager):
 
 
 class ActiveUserManager(UserManager):
+    """
+    Manager for active users only (is_active=True, deleted_at=None).
+    """
     def get_queryset(self):
         return super().get_queryset().filter(is_active=True, deleted_at__isnull=True)
     
 
 class CustomUser(AbstractUser):
+    """
+    Custom user model for the platform.
+    Uses email as the unique identifier and supports 'freelancer' and 'client' user types.
+    Includes audit logging and soft deletion (deleted_at).
+    """
     USER_TYPE_CHOICES = (
         ('freelancer', 'Freelancer'),
         ('client', 'Client'),
