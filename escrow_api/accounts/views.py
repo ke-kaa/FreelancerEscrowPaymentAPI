@@ -218,6 +218,17 @@ class PasswordResetConfirmAPIView(generics.GenericAPIView):
     
 
 class UserListAPIView(generics.ListAPIView):
+    """
+    Allows admin users to list all users with filtering and searching.
+
+    Method: GET
+    Query Parameters:
+        - user_type (filter)
+        - is_active (filter)
+        - search (email, first_name, last_name)
+        - ordering (id, last_name, first_name, user_type, created_at)
+    Retrieves a paginated list of users.
+    """
     serializer_class = my_serializers.UserListSerializer
     permission_classes = [permissions.IsAdminUser]
     
@@ -227,6 +238,16 @@ class UserListAPIView(generics.ListAPIView):
     ordering_fields = ['id', 'last_name', 'first_name', 'user_type', 'created_at']
     ordering = ['-last_name', '-first_name']
     pagination_class = UserListPagination
+
+    @swagger_auto_schema(
+        operation_summary="List all users (Admin only)",
+        responses={
+            200: my_serializers.UserListSerializer(many=True),
+            403: "Forbidden"
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         return my_models.CustomUser.objects.all()
