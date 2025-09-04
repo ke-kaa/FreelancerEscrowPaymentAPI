@@ -88,11 +88,27 @@ class UserProfileRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
 
 
 class ChangePasswordAPIView(drf_Views.APIView):
+    """
+    Allows an authenticated user to change their password.
+
+    Method: POST
+    Request Body:
+        - current password (required)
+        - new password with confirmation (required)
+    Validates the current password and ensures new passwords match before updating.
+    """
     serializer_class = my_serializers.ChangePasswordSerializer
     authentication_classes = [authentication.JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
-    @swagger_auto_schema(request_body=my_serializers.ChangePasswordSerializer)
+    @swagger_auto_schema(
+        operation_summary="Change the current user's password",
+        request_body=my_serializers.ChangePasswordSerializer,
+        responses={
+            200: "Password updated successfully",
+            400: "Invalid input"
+        }
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid(raise_exception=True):
