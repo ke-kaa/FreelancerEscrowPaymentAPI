@@ -7,6 +7,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 
 from . import serializers as my_serializers
@@ -124,25 +125,39 @@ class LogoutAPIView(drf_Views.APIView):
     Allows an authenticated user to log out by blacklisting their refresh token.
 
     Method: POST
-    Request Body:
-        - refresh (required)
+    Headers:
+        - X-Refresh-Token (required)
     Blacklists the provided refresh token to invalidate the session.
     """
     permission_classes = [permissions.IsAuthenticated]
     
     @swagger_auto_schema(
         operation_summary="Log out the user by blacklisting their refresh token",
-        request_body=my_serializers.LogoutSerializer,
+        manual_parameters=[
+            openapi.Parameter(
+                'X-Refresh-Token',
+                openapi.IN_HEADER,
+                description="Refresh token to blacklist",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
         responses={
             200: "Logout successful",
             400: "Invalid token"
         }
     )
     def post(self, request):
-        serializer = my_serializers.LogoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
+        refresh_token = request.headers.get('X-Refresh-Token')
+        if not refresh_token:
+            return Response({'detail': 'X-Refresh-Token header is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            token = tokens.RefreshToken(refresh_token)
+            token.blacklist()
+        except tokens.TokenError:
+            return Response({'detail': 'Invalid token.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         return Response(
             {'detail': "Logout successful."},
             status=status.HTTP_200_OK
@@ -254,6 +269,14 @@ class UserListAPIView(generics.ListAPIView):
     
 
 class UserDeleteAPIView(generics.UpdateAPIView):
+    """
+    Allows authenticated users to soft-delete their own account.
+
+    Method: PATCH
+    Headers:
+        - X-Refresh-Token (optional)
+    Sets the account as deleted and blacklists the refresh token if provided.
+    """
     serializer_class = my_serializers.UserDeleteSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [authentication.JWTAuthentication]
@@ -262,16 +285,32 @@ class UserDeleteAPIView(generics.UpdateAPIView):
     def get_object(self):
         return self.request.user
     
+    @swagger_auto_schema(
+        operation_summary="Soft-delete the current user's account",
+        manual_parameters=[
+            openapi.Parameter(
+                'X-Refresh-Token',
+                openapi.IN_HEADER,
+                description="Refresh token to blacklist (optional)",
+                type=openapi.TYPE_STRING,
+                required=False
+            )
+        ],
+        responses={
+            200: "Account deleted",
+            400: "Invalid input"
+        }
+    )
     def update(self, request, *args, **kwargs):
         user = self.get_object()
 
-        try: 
-            refresh_token = request.data.get('refresh_token')
-            if refresh_token:
+        refresh_token = request.headers.get('X-Refresh-Token')
+        if refresh_token:
+            try:
                 token = tokens.RefreshToken(refresh_token)
                 token.blacklist()
-        except Exception:
-            pass
+            except tokens.TokenError:
+                pass 
         
         serializer = self.get_serializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -279,7 +318,7 @@ class UserDeleteAPIView(generics.UpdateAPIView):
         return Response({
             'detail': "Account deleted."
         }, status=status.HTTP_200_OK)
-
+    
 
 class ReactivationRequestAPIView(generics.GenericAPIView):
     serializer_class = my_serializers.ReactivationRequestSerializer
