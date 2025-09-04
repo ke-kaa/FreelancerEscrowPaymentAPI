@@ -120,9 +120,24 @@ class ChangePasswordAPIView(drf_Views.APIView):
 
 
 class LogoutAPIView(drf_Views.APIView):
+    """
+    Allows an authenticated user to log out by blacklisting their refresh token.
+
+    Method: POST
+    Request Body:
+        - refresh (required)
+    Blacklists the provided refresh token to invalidate the session.
+    """
     permission_classes = [permissions.IsAuthenticated]
     
-    @swagger_auto_schema(request_body=my_serializers.LogoutSerializer)
+    @swagger_auto_schema(
+        operation_summary="Log out the user by blacklisting their refresh token",
+        request_body=my_serializers.LogoutSerializer,
+        responses={
+            200: "Logout successful",
+            400: "Invalid token"
+        }
+    )
     def post(self, request):
         serializer = my_serializers.LogoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
