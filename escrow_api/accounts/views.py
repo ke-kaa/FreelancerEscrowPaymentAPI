@@ -150,17 +150,26 @@ class LogoutAPIView(drf_Views.APIView):
     
 
 class PasswordResetRequestAPIView(generics.GenericAPIView):
-    '''
-    Accepts POST request with user's email.
-    Sends an email using send_reset_email function (defined in utils.py)
-    send_reset_email sends an email containing uid and token for password reset which are expected
-        by the PasswordResetConfirmView
-    '''
+    """
+    Allows users to request a password reset link via email.
+
+    Method: POST
+    Request Body:
+        - email (required)
+    Sends a password reset link to the provided email if the account exists.
+    """
     serializer_class = my_serializers.PasswordResetRequestSerializer
     throttle_classes = [AnonRateThrottle,UserRateThrottle]
     permission_classes=[permissions.AllowAny]
 
-    @swagger_auto_schema(request_body=my_serializers.PasswordResetRequestSerializer)
+    @swagger_auto_schema(
+        operation_summary="Request a password reset email",
+        request_body=my_serializers.PasswordResetRequestSerializer,
+        responses={
+            200: "Password reset link sent",
+            400: "Invalid input"
+        }
+    )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -176,12 +185,28 @@ class PasswordResetRequestAPIView(generics.GenericAPIView):
 
 
 class PasswordResetConfirmAPIView(generics.GenericAPIView):
-    '''
-    Accepts POST request with uidb65, token, new_password, confirm_password'''
+    """
+    Allows users to confirm and complete a password reset.
+
+    Method: POST
+    Request Body:
+        - new_password (required)
+        - confirm_password (required)
+        - uid (required)
+        - token (required)
+    Validates the token and updates the user's password.
+    """
     serializer_class = my_serializers.PasswordResetConfirmSerializer
     permission_classes = [permissions.AllowAny]
 
-    @swagger_auto_schema(request_body=my_serializers.PasswordResetConfirmSerializer)
+    @swagger_auto_schema(
+        operation_summary="Confirm a password reset",
+        request_body=my_serializers.PasswordResetConfirmSerializer,
+        responses={
+            200: "Password has been successfully updated",
+            400: "Invalid token or input"
+        }
+    )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
