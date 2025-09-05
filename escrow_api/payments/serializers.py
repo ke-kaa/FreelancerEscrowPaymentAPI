@@ -4,6 +4,7 @@ from decimal import Decimal
 import uuid
 
 from .models import Payment, PayoutMethod, ChapaPayoutMethod, StripePayoutMethod, Bank
+from user_projects.models import UserProject
 from escrow.models import EscrowTransaction
 
 
@@ -17,9 +18,23 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class FundingInitiateSerializer(serializers.Serializer):
-    project_id = serializers.IntegerField()
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     provider_name = serializers.CharField()
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        project_id = self.context.get("project_id")
+        project = UserProject.objects.filter(id=project_id).first()
+        if not project:
+            raise serializers.ValidationError("Project not found.")
+        if project.client != request.user:
+            raise serializers.ValidationError("Only the project client can initiate funding.")
+        milestones = project.milestones.order_by('due_date', 'id')
+        if milestones.exists():
+            initial_milestone = milestones.first()
+            if attrs['amount'] < initial_milestone.amount:
+                raise serializers.ValidationError(f'Funding must be at least the initial milestone amount ({initial_milestone.amount})')
+        return attrs
 
 
 class FundingVerifySerializer(serializers.Serializer):
@@ -50,6 +65,21 @@ class ChapaPayoutMethodCreateSerializer(serializers.Serializer):
     bank_name = serializers.CharField(required=False, allow_blank=True)
     is_default = serializers.BooleanField(default=False)
 
+    def validate(self, attrs):
+        user = self.context['request'].user
+        account_number = attrs.get('account_number')
+        bank_code = attrs.get('bank_code')
+        from .models import PayoutMethod, ChapaPayoutMethod
+        existing = ChapaPayoutMethod.objects.filter(
+        payout_method__user=user,
+        account_number=account_number,
+        bank_code=bank_code,
+        payout_method__provider='chapa',
+        ).first()
+        if existing:
+            raise serializers.ValidationError('This Chapa account is already added as a payout method.')
+        return attrs
+
     def create(self, validated_data):
         user = self.context['request'].user
         with transaction.atomic():
@@ -61,6 +91,19 @@ class ChapaPayoutMethodCreateSerializer(serializers.Serializer):
 class StripePayoutMethodCreateSerializer(serializers.Serializer):
     stripe_account_id = serializers.CharField()
     is_default = serializers.BooleanField(default=False)
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        stripe_account_id = attrs.get('stripe_account_id')
+        from .models import PayoutMethod, StripePayoutMethod
+        existing = StripePayoutMethod.objects.filter(
+            payout_method__user=user,
+            stripe_account_id=stripe_account_id,
+            payout_method__provider='stripe',
+        ).first()
+        if existing:
+            raise serializers.ValidationError('This Stripe account is already added as a payout method.')
+        return attrs
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -164,4 +207,5 @@ class StripeWebhookSerializer(serializers.Serializer):
         attrs['transfer_id'] = transfer_id
         attrs['object_status'] = event_object.get('status')
         return attrs
+
 

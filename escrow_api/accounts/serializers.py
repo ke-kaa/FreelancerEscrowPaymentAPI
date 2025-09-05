@@ -14,6 +14,14 @@ from .models import CustomUser
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Serializer for user login and token generation.
+
+    Fields:
+        - email (required)
+        - password (required)
+    Validates credentials and checks if account is active before issuing tokens.
+    """
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
@@ -44,6 +52,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     
 
 class RegistrationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user registration.
+
+    Fields :
+        required: first_name, last_name, user_type, country, email, password, confirm_password
+        optional: phone_number
+    Validates password confirmation and creates a new user.
+    """
     password = serializers.CharField(required=True, write_only=True)
     confirm_password = serializers.CharField(required=True, write_only=True)
 
@@ -55,6 +71,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             'last_name': {'required': True},
             'email': {'required': True},
             'country': {'required': True},
+            'user_type': {'required': True}
         }
     
     def validate(self, attrs):
@@ -74,7 +91,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ('id', 'first_name', 'last_name', 'email', 'phone_number', 'user_type', 'country')
-        read_only_fields = ('email',)
+        read_only_fields = ('id', 'email', 'user_type')
 
 
 class ChangePasswordSerializer(serializers.Serializer):
