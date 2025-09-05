@@ -260,6 +260,13 @@ class UserDeleteSerializer(serializers.ModelSerializer):
     
 
 class ReactivationRequestSerializer(serializers.Serializer):
+    """
+    Serializer for account reactivation request.
+
+    Fields:
+        - email (required)
+    Validates email and ensures the account is deactivated before allowing reactivation request.
+    """
     email = serializers.EmailField()
 
     def validate_email(self, value):
@@ -277,6 +284,14 @@ class ReactivationRequestSerializer(serializers.Serializer):
     
 
 class AccountReactivationConfrimSerailizer(serializers.Serializer):
+    """
+    Serializer for account reactivation confirmation.
+
+    Fields (all required):
+        - uid
+        - token
+    Validates reactivation token and reactivates the user account.
+    """
     uid = serializers.CharField()
     token = serializers.CharField()
 
