@@ -157,6 +157,13 @@ class LogoutSerializer(serializers.Serializer):
         
 
 class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Serializer for password reset request.
+
+    Fields:
+        - email (required)
+    Validates email and retrieves user for sending reset link.
+    """
     email = serializers.EmailField()
 
     def validate_email(self, value):
@@ -169,6 +176,16 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
+    """
+    Serializer for password reset confirmation.
+
+    Fields (all are required):
+        - new_password 
+        - confirm_password 
+        - uid 
+        - token 
+    Validates token and updates user password.
+    """
     new_password = serializers.CharField(required=True, write_only=True)
     confirm_password = serializers.CharField(required=True, write_only=True)
     uid = serializers.CharField(required=True)
