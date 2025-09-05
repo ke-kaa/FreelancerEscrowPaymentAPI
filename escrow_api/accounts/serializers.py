@@ -216,12 +216,37 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     
 
 class UserListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing users.
+
+    Fields (all read-only):
+        - id
+        - email
+        - first_name
+        - last_name
+        - user_type
+        - is_active
+        - created_at
+        - updated_at
+        - deleted_at
+    Provides user data for administrative listing.
+    """
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'user_type', 'is_active', 'created_at', 'updated_at', 'deleted_at']
 
 
 class UserDeleteSerializer(serializers.ModelSerializer):
+    """
+    Serializer for soft deleting users.
+
+    Fields:
+        - id (read-only)
+        - email (read-only)
+        - is_active (read-only after update)
+        - deleted_at (read-only, set on update)
+    Performs soft delete by setting deleted_at timestamp and deactivating user.
+    """
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'is_active', 'deleted_at']
