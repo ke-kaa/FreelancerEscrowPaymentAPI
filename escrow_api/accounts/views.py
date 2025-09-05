@@ -364,12 +364,12 @@ class AccountReactivationConfirmAPIView(generics.GenericAPIView):
         - token (required)
     Validates the token and restores the soft-deleted account.
     """
-    serializer_class = my_serializers.AccountReactivationConfrimSerailizer
+    serializer_class = my_serializers.AccountReactivationConfirmSerializer
     permission_classes = []
 
     @swagger_auto_schema(
         operation_summary="Confirm account reactivation",
-        request_body=my_serializers.AccountReactivationConfrimSerailizer,
+    request_body=my_serializers.AccountReactivationConfirmSerializer,
         responses={
             200: "Account successfully reactivated",
             400: "Invalid token or input"

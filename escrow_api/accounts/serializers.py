@@ -320,7 +320,7 @@ class ReactivationRequestSerializer(serializers.Serializer):
         return value
     
 
-class AccountReactivationConfrimSerailizer(serializers.Serializer):
+class AccountReactivationConfirmSerializer(serializers.Serializer):
     """
     Serializer for account reactivation confirmation.
 
