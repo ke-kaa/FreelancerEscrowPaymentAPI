@@ -88,6 +88,14 @@ class RegistrationSerializer(serializers.ModelSerializer):
     
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user profile retrieval and updates.
+
+    Fields:
+        read-only: id, email, user_type
+        - first_name, last_name, phone_number, country
+    Handles profile data with read-only fields for security.
+    """
     class Meta:
         model = CustomUser
         fields = ('id', 'first_name', 'last_name', 'email', 'phone_number', 'user_type', 'country')
@@ -95,6 +103,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class ChangePasswordSerializer(serializers.Serializer):
+    """
+    Serializer for changing user password.
+
+    Fields (all are required):
+        - old_password 
+        - new_password 
+        - confirm_password
+    Validates old password and ensures new passwords match.
+    """
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
     confirm_password = serializers.CharField(required=True)
@@ -118,6 +135,13 @@ class ChangePasswordSerializer(serializers.Serializer):
     
 
 class LogoutSerializer(serializers.Serializer):
+    """
+    Serializer for user logout.
+
+    Fields:
+        - refresh (required)
+    Blacklists the provided refresh token to invalidate the session.
+    """
     refresh = serializers.CharField()
 
     def validate(self, attrs):
