@@ -321,11 +321,26 @@ class UserDeleteAPIView(generics.UpdateAPIView):
     
 
 class ReactivationRequestAPIView(generics.GenericAPIView):
+    """
+    Allows users to request an account reactivation link.
+
+    Method: POST
+    Request Body:
+        - email (required)
+    Sends a reactivation link if the account was deleted within the allowed time window.
+    """
     serializer_class = my_serializers.ReactivationRequestSerializer
     permission_classes = [my_permissions.CanReactivate]
     throttle_classes = [throttles.EmailRateThrottle, AnonRateThrottle]
 
-    @swagger_auto_schema(request_body=my_serializers.ReactivationRequestSerializer)
+    @swagger_auto_schema(
+        operation_summary="Request an account reactivation email",
+        request_body=my_serializers.ReactivationRequestSerializer,
+        responses={
+            200: "Reactivation link sent",
+            400: "Invalid input or permission denied"
+        }
+    )
     def post(self, request):
         seriailzer = self.get_serializer(data=request.data)
         seriailzer.is_valid(raise_exception=True)
@@ -340,10 +355,26 @@ class ReactivationRequestAPIView(generics.GenericAPIView):
         
 
 class AccountReactivationConfirmAPIView(generics.GenericAPIView):
+    """
+    Allows users to confirm and complete account reactivation.
+
+    Method: POST
+    Request Body:
+        - uid (required)
+        - token (required)
+    Validates the token and restores the soft-deleted account.
+    """
     serializer_class = my_serializers.AccountReactivationConfrimSerailizer
     permission_classes = []
 
-    @swagger_auto_schema(request_body=my_serializers.AccountReactivationConfrimSerailizer)
+    @swagger_auto_schema(
+        operation_summary="Confirm account reactivation",
+        request_body=my_serializers.AccountReactivationConfrimSerailizer,
+        responses={
+            200: "Account successfully reactivated",
+            400: "Invalid token or input"
+        }
+    )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
