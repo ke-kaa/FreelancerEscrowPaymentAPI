@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
@@ -13,6 +15,9 @@ from django.core.exceptions import ValidationError as DjangoPasswordValidationEr
 
 
 from .models import CustomUser
+
+
+logger = logging.getLogger(__name__)
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -37,11 +42,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         } 
 
         try:
-            user = CustomUser.objects.filter(email=attrs.get('email')).first()
-            if not user.is_active:
-                raise AuthenticationFailed("Your account is deactivated. Reactivate to log in.")
-        except:
+            user = CustomUser.objects.get(email=attrs.get('email'))
+        except CustomUser.DoesNotExist:
+            logger.info("Login attempt with unknown email", extra={"email": attrs.get('email')})
             raise serializers.ValidationError("Invalid credentials")
+
+        if not user.is_active:
+            logger.warning("Login attempt for deactivated account", extra={"user_id": user.id})
+            raise AuthenticationFailed("Your account is deactivated. Reactivate to log in.")
 
         user = authenticate(**credentials)
 
@@ -295,12 +303,16 @@ class ReactivationRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate_email(self, value):
-        try:
-            user = CustomUser.objects.filter(email=value).first()
-        except:
+        user = CustomUser.objects.filter(email=value).first()
+        if user is None:
+            logger.info("Reactivation requested for unknown email", extra={"email": value})
             raise serializers.ValidationError("No user found with this email.")
         
-        if user.is_active or not user.deleted_at:
+        if user.is_active or user.deleted_at is None:
+            logger.info(
+                "Reactivation requested for active account",
+                extra={"user_id": user.id, "email": user.email}
+            )
             raise serializers.ValidationError("This account is not deactivated.")
         
         self.context['user'] = user
