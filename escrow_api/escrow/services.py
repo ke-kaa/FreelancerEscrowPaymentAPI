@@ -26,7 +26,7 @@ class EscrowService:
 
         try:
             with transaction.atomic():
-                commission_amount = amount * settings.PLATFORM_COMMISSION_RATE
+                commission_amount = amount * Decimal(str(settings.PLATFORM_COMMISSION_RATE))
 
                 escrow = EscrowTransaction.objects.create(
                     project=project,
