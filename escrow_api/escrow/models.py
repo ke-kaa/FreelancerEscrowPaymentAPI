@@ -3,17 +3,20 @@ from django.db import models
 
 from user_projects.models import UserProject
 
-# Create your models here.
+
 class EscrowTransaction(models.Model):
     STATUS_CHOICES = (
+        ('pending_funding', 'Pending Funding')
         ('funded', 'Funded'),
         ('released', 'Released'),
+        ('partially_released', 'Partially Released')
         ('refunded', 'Refunded'),
         ('disputed', 'Disputed'),
     )
 
     project = models.OneToOneField(UserProject, on_delete=models.CASCADE)
-    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    funded_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_locked = models.BooleanField(default=False)  # Lock during disputes
     commission_amount = models.DecimalField(max_digits=10, decimal_places=2)
     # stripe_payment_intent_id = models.CharField(max_length=255, blank=True)
@@ -22,3 +25,4 @@ class EscrowTransaction(models.Model):
 
     def __str__(self):
         return f"Escrow for {self.project.title} ({self.amount})"
+
