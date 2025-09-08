@@ -7,12 +7,15 @@ from django.core.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from . import serializers as my_serializers
 from user_projects.permissions import IsClientOrAssignedFreelancer, IsOwner
 from user_projects.models import UserProject
 from .permissions import IsModerator, IsDisputeParticipantOrModerator, IsDisputeOwner
 from .models import Dispute, DisputeMessage
+from escrow.models import EscrowTransaction
 
 
 class CreateDisputeAPIView(generics.CreateAPIView):
@@ -35,6 +38,17 @@ class CreateDisputeAPIView(generics.CreateAPIView):
         context = super().get_serializer_context()
         context['project'] = get_object_or_404(UserProject, id=self.kwargs['project_id'])
         return context
+
+    @swagger_auto_schema(
+        operation_summary="Create a dispute for a project",
+        request_body=my_serializers.DisputeCreateSerializer,
+        responses={
+            201: openapi.Response(description="Dispute created successfully"),
+            400: "Validation error"
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -61,6 +75,33 @@ class ListDisputesAPIView(generics.ListAPIView):
     ordering_fields = ['created_at', 'updated_at']
     ordering = ['-updated_at']
 
+    @swagger_auto_schema(
+        operation_summary="List disputes with optional filtering",
+        manual_parameters=[
+            openapi.Parameter(
+                'status',
+                openapi.IN_QUERY,
+                description="Filter disputes by status",
+                type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                'dispute_type',
+                openapi.IN_QUERY,
+                description="Filter disputes by dispute type",
+                type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                'ordering',
+                openapi.IN_QUERY,
+                description="Order results by one of: created_at, updated_at",
+                type=openapi.TYPE_STRING
+            ),
+        ],
+        responses={200: my_serializers.DisputeDetailSerializer(many=True)}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
         user = self.request.user
         if user.is_staff or user.groups.filter(name='Moderators').exists():
@@ -82,6 +123,13 @@ class RetrieveDisputeAPIView(generics.RetrieveAPIView):
     queryset = Dispute.objects.select_related('project', 'raised_by', 'resolved_by')
     lookup_field = 'id'
 
+    @swagger_auto_schema(
+        operation_summary="Retrieve a dispute",
+        responses={200: my_serializers.DisputeDetailSerializer(), 404: "Not found"}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
 
 class ModeratorUpdateDisputeAPIView(generics.UpdateAPIView):
     """
@@ -92,6 +140,22 @@ class ModeratorUpdateDisputeAPIView(generics.UpdateAPIView):
     authentication_classes = [JWTAuthentication]
     queryset = Dispute.objects.all()
     lookup_field = 'id'
+
+    @swagger_auto_schema(
+        operation_summary="Partially update a dispute as moderator",
+        request_body=my_serializers.ModeratorDisputeUpdateSerializer,
+        responses={200: my_serializers.DisputeDetailSerializer(), 400: "Validation error"}
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="Update a dispute as moderator",
+        request_body=my_serializers.ModeratorDisputeUpdateSerializer,
+        responses={200: my_serializers.DisputeDetailSerializer(), 400: "Validation error"}
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -114,6 +178,29 @@ class UpdateDeleteDisputeAPIView(generics.UpdateDestroyAPIView):
     queryset = Dispute.objects.all()
     lookup_field = 'id'
 
+    @swagger_auto_schema(
+        operation_summary="Partially update an open dispute",
+        request_body=my_serializers.UpdateDisputeSerializer,
+        responses={200: my_serializers.UpdateDisputeSerializer(), 400: "Validation error"}
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="Update an open dispute",
+        request_body=my_serializers.UpdateDisputeSerializer,
+        responses={200: my_serializers.UpdateDisputeSerializer(), 400: "Validation error"}
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="Delete an open dispute",
+        responses={204: "Dispute deleted"}
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
+
     def perform_destroy(self, instance):
         """
         Custom logic for deleting a dispute.
@@ -127,12 +214,17 @@ class UpdateDeleteDisputeAPIView(generics.UpdateDestroyAPIView):
             project.status = 'active'
             project.save(update_fields=['status'])
 
-            # TODO ;)
-            # Unlock the associated escrow transaction 
-            # if hasattr(project, 'escrotransaction'):
-            #     escrow = project.escrotransaction
-            #     escrow.is_locked = False
-            #     escrow.save(update_fields=['is_locked'])
+            escrow = getattr(project, 'escrowtransaction', None)
+            if isinstance(escrow, EscrowTransaction):
+                updates = []
+                if escrow.is_locked:
+                    escrow.is_locked = False
+                    updates.append('is_locked')
+                if escrow.status == 'disputed':
+                    escrow.status = 'funded' if escrow.current_balance > 0 else 'pending_funding'
+                    updates.append('status')
+                if updates:
+                    escrow.save(update_fields=updates)
             
             # Finally, delete the dispute instance
             instance.delete()

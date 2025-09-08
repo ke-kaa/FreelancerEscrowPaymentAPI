@@ -3,6 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Dispute, DisputeMessage
+from escrow.models import EscrowTransaction
 
 
 class DisputeCreateSerializer(serializers.ModelSerializer):
@@ -49,10 +50,17 @@ class DisputeCreateSerializer(serializers.ModelSerializer):
             project.save(update_fields=['status'])
 
             # Lock the associated escrow transaction to prevent fund movement
-            # if hasattr(project, 'escrotransaction'):
-            #     escrow = project.escrotransaction
-            #     escrow.is_locked = True
-            #     escrow.save(update_fields=['is_locked'])
+            escrow = getattr(project, 'escrowtransaction', None)
+            if isinstance(escrow, EscrowTransaction):
+                updates = []
+                if not escrow.is_locked:
+                    escrow.is_locked = True
+                    updates.append('is_locked')
+                if escrow.status != 'disputed':
+                    escrow.status = 'disputed'
+                    updates.append('status')
+                if updates:
+                    escrow.save(update_fields=updates)
 
         return dispute
 
@@ -108,6 +116,23 @@ class ModeratorDisputeUpdateSerializer(serializers.ModelSerializer):
                 instance.closed_at = timezone.now()
 
             instance.save()
+
+            project = instance.project
+            escrow = getattr(project, 'escrowtransaction', None)
+            if isinstance(escrow, EscrowTransaction):
+                updates = []
+                if escrow.is_locked:
+                    escrow.is_locked = False
+                    updates.append('is_locked')
+                if escrow.status == 'disputed':
+                    escrow.status = 'funded' if escrow.current_balance > 0 else 'pending_funding'
+                    updates.append('status')
+                if updates:
+                    escrow.save(update_fields=updates)
+
+            if project.status == 'disputed':
+                project.status = 'active'
+                project.save(update_fields=['status'])
         
         return instance
 
