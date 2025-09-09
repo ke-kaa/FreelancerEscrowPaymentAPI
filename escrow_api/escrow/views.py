@@ -1,6 +1,8 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status, views
 from rest_framework.response import Response
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from .models import EscrowTransaction
 from .serializers import (
@@ -16,6 +18,13 @@ class EscrowTransactionListView(generics.ListAPIView):
 
 	serializer_class = EscrowTransactionSerializer
 	permission_classes = [permissions.IsAuthenticated]
+
+	@swagger_auto_schema(
+		operation_summary="List escrow transactions for the current user",
+		responses={200: EscrowTransactionSerializer(many=True)}
+	)
+	def get(self, request, *args, **kwargs):
+		return super().get(request, *args, **kwargs)
 
 	def get_queryset(self):
 		user = self.request.user
@@ -45,6 +54,13 @@ class EscrowTransactionDetailView(generics.RetrieveAPIView):
 		"project__freelancer",
 	).prefetch_related("payments")
 
+	@swagger_auto_schema(
+		operation_summary="Retrieve a specific escrow transaction",
+		responses={200: EscrowTransactionSerializer(), 404: "Not found"}
+	)
+	def get(self, request, *args, **kwargs):
+		return super().get(request, *args, **kwargs)
+
 	def check_object_permissions(self, request, obj):
 		super().check_object_permissions(request, obj)
 		if request.user.is_staff:
@@ -60,6 +76,24 @@ class EscrowTransactionDetailView(generics.RetrieveAPIView):
 class EscrowReleaseFundsView(views.APIView):
 	permission_classes = [permissions.IsAuthenticated]
 
+	@swagger_auto_schema(
+		operation_summary="Release funds from an escrow",
+		manual_parameters=[
+			openapi.Parameter(
+				'pk',
+				openapi.IN_PATH,
+				description="Escrow transaction ID",
+				type=openapi.TYPE_INTEGER,
+			)
+		],
+		request_body=EscrowReleaseSerializer,
+		responses={
+			200: openapi.Response(description="Release initiated or completed"),
+			400: "Validation error",
+			403: "Forbidden",
+			404: "Not found",
+		}
+	)
 	def post(self, request, pk):
 		escrow = get_object_or_404(
 			EscrowTransaction.objects.select_related("project", "project__client", "project__freelancer"),
@@ -82,10 +116,22 @@ class EscrowReleaseFundsView(views.APIView):
 		return Response(result, status=http_status)
 
 
-
 class EscrowLockToggleView(views.APIView):
 	permission_classes = [permissions.IsAdminUser]
 
+	@swagger_auto_schema(
+		operation_summary="Lock or unlock an escrow transaction",
+		manual_parameters=[
+			openapi.Parameter(
+				'pk',
+				openapi.IN_PATH,
+				description="Escrow transaction ID",
+				type=openapi.TYPE_INTEGER,
+			)
+		],
+		request_body=EscrowLockSerializer,
+		responses={200: EscrowLockSerializer(), 403: "Forbidden", 404: "Not found"}
+	)
 	def patch(self, request, pk):
 		escrow = get_object_or_404(EscrowTransaction, pk=pk)
 		serializer = EscrowLockSerializer(data=request.data)
