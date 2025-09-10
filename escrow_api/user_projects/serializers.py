@@ -14,24 +14,47 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for lightweight user references.
+
+    Fields (all read-only): id, first_name, last_name, email, phone_number.
+    Used when embedding client/freelancer details in project and proposal payloads.
+    """
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_number']
 
 
 class ProposalSummarySerializer(serializers.ModelSerializer):
+    """
+    Serializer summarizing proposal submissions for list/detail views.
+
+    Fields (all read-only): id, bid_amount, cover_letter, status, submitted_at,
+    estimated_delivery_days, is_withdrawn.
+    """
     class Meta:
         model = Proposal
-        fields = ['id', 'big_ammount', 'cover_letter', 'status', 'submitted_at', 'estimated_delivery_days', 'is_withdrawn']
+        fields = ['id', 'bid_amount', 'cover_letter', 'status', 'submitted_at', 'estimated_delivery_days', 'is_withdrawn']
 
 
 class ProjectSummarySerializer(serializers.ModelSerializer):
+    """
+    Serializer providing compact project information for nested responses.
+
+    Fields (all read-only): id, title, description, amount, created_at, status.
+    """
     class Meta:
         model = UserProject
         fields = ['id', 'title', 'description', 'amount', 'created_at', 'status']
 
 
 class MilestoneSummarySeriailzer(serializers.ModelSerializer):
+    """
+    Serializer outlining milestone progress and payment status.
+
+    Fields (all read-only): id, title, description, amount, status, submitted_at,
+    approved_at, rejected_reason, due_date, is_paid.
+    """
     class Meta:
         model = Milestone
         fields = ['id', 'title', 'description', 'amount', 'status', 'submitted_at', 'approved_at', 'rejected_reason', 'due_date', 'is_paid']
@@ -70,6 +93,8 @@ class ListProjectClientSerializer(serializers.ModelSerializer):
 
     
 class ListProjectFreelancerSerializer(serializers.ModelSerializer):
+    client = UserSerializer(read_only=True)
+
     class Meta: 
         model = UserProject
         fields = ['id', 'client', 'title', 'freelancer', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at']
@@ -105,11 +130,11 @@ class RetrieveProjectFreelancerSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UserProject
-        fields = ['client', 'title', 'description', 'amount', 'status', 'created_at', 'updated_at']
+        fields = ['client', 'title', 'description', 'amount', 'status', 'created_at', 'updated_at', 'proposal']
 
     def get_proposal(self, obj):
         user = self.context['request'].user
-        proposal = obj.proposals.filter(freelancer=user)
+        proposal = obj.proposals.filter(freelancer=user).first()
 
         if proposal:
             return ProposalSummarySerializer(proposal).data
@@ -146,6 +171,8 @@ class CreateProposalFreelancerSerializer(serializers.ModelSerializer):
 
         if Proposal.objects.filter(project=project, freelancer=request.user).exists():
             raise serializers.ValidationError("You have already submitted a proposal for this project.")
+        
+        return attrs
 
 
 class ListProjectProposalsClientSerializer(serializers.ModelSerializer):
@@ -153,7 +180,7 @@ class ListProjectProposalsClientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Proposal
-        fields = ['freelancer', 'bid_amount', 'submitted_at', 'status', 'estimated_delivery_days', 'is_withdrawn']
+        fields = ['id', 'freelancer', 'bid_amount', 'submitted_at', 'status', 'estimated_delivery_days', 'is_withdrawn']
 
 
 class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
@@ -245,8 +272,10 @@ class CreateMilestoneClientSerializer(serializers.ModelSerializer):
         fields = ['title', 'description', 'amount', 'due_date']
 
     def validate(self, attrs):
-        project = attrs.get('project')
-        request = self.context['request']
+        project = self.context.get('project')
+        request = self.context.get('request')
+        if not project:
+            raise serializers.ValidationError("Project context is missing.")
         if project.client != request.user:
             raise serializers.ValidationError("You do not have permission to add milestones to this project.")
         if project.status not in ['pending', 'active']:
