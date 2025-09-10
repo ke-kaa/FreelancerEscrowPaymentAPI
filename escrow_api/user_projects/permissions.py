@@ -12,6 +12,11 @@ class IsOwner(BasePermission):
         return obj.client == request.user
 
 
+class IsOwnerFreelancer(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.freelancer == request.user
+    
+
 class IsFreelancer(BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.user_type == 'freelancer'
