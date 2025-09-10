@@ -61,6 +61,13 @@ class MilestoneSummarySeriailzer(serializers.ModelSerializer):
 
 
 class CreateProjectClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients to create new projects.
+
+    Fields:
+        - title, description, amount (required inputs)
+    Automatically attaches the authenticated client to the project record.
+    """
     class Meta:
         model = UserProject
         fields = ['title', 'description', 'amount',]
@@ -81,18 +88,33 @@ class CreateProjectClientSerializer(serializers.ModelSerializer):
 
 
 class ListProjectAdminSerializer(serializers.ModelSerializer):
+    """
+    Serializer for administrators listing all projects.
+
+    Fields include project participants, financials, and timestamps to support back-office overview.
+    """
     class Meta:
         model = UserProject
         fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'status', 'commission_rate', 'created_at', 'updated_at']
     
 
 class ListProjectClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients listing their own projects.
+
+    Exposes participant info, commission rate, visibility flag, and lifecycle metadata.
+    """
     class Meta: 
         model = UserProject
         fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
 
     
 class ListProjectFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for freelancers listing projects they are assigned to.
+
+    Includes embedded client summary plus project scope, pay, and status fields.
+    """
     client = UserSerializer(read_only=True)
 
     class Meta: 
@@ -101,6 +123,11 @@ class ListProjectFreelancerSerializer(serializers.ModelSerializer):
 
 
 class RetrieveUpdateDeleteProjectClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients retrieving/updating their project details.
+
+    Provides structured client/freelancer contact info and enforces read-only contract attributes.
+    """
     client = serializers.SerializerMethodField()
     freelancer = serializers.SerializerMethodField()
 
@@ -125,6 +152,11 @@ class RetrieveUpdateDeleteProjectClientSerializer(serializers.ModelSerializer):
 
 
 class RetrieveProjectFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for freelancers viewing a specific project.
+
+    Includes client summary and the freelancer's proposal context, if submitted.
+    """
     client = UserSerializer(read_only=True)
     proposal = serializers.SerializerMethodField()
     
@@ -142,6 +174,9 @@ class RetrieveProjectFreelancerSerializer(serializers.ModelSerializer):
 
 
 class RetrieveProjectAdminSeriailzer(serializers.ModelSerializer):
+    """
+    Serializer for administrators reviewing individual projects with participant details.
+    """
     client = UserSerializer(read_only=True)
     freelancer = UserSerializer(read_only=True)
 
@@ -151,6 +186,11 @@ class RetrieveProjectAdminSeriailzer(serializers.ModelSerializer):
 
 
 class CreateProposalFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for freelancers submitting proposals.
+
+    Validates positive bid amount and prevents duplicate submissions per project/user pair.
+    """
     class Meta:
         model = Proposal
         fields = ['cover_letter', 'bid_amount', 'estimated_delivery_days', 'is_withdrawn']
@@ -176,6 +216,11 @@ class CreateProposalFreelancerSerializer(serializers.ModelSerializer):
 
 
 class ListProjectProposalsClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients listing proposals received on a project.
+
+    Embeds freelancer contact info and key bid metadata.
+    """
     freelancer = UserSerializer(read_only=True)
 
     class Meta:
@@ -184,6 +229,11 @@ class ListProjectProposalsClientSerializer(serializers.ModelSerializer):
 
 
 class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients reviewing a single proposal.
+
+    Exposes freelancer details and renders proposal content read-only post submission.
+    """
     freelancer = UserSerializer(read_only=True)
 
     class Meta:
@@ -193,6 +243,11 @@ class RetrieveUpdateProposalClientSerializer(serializers.ModelSerializer):
 
 
 class AcceptProposalClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients recording proposal acceptance.
+
+    Returns freelancer summary alongside acceptance timestamp.
+    """
     freelancer = UserSerializer(read_only=True)
     class Meta:
         model = Proposal
@@ -201,6 +256,11 @@ class AcceptProposalClientSerializer(serializers.ModelSerializer):
     
 
 class RejectProposalClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients tracking rejected proposals.
+
+    Provides freelancer and project context with final status.
+    """
     freelancer = UserSerializer(read_only=True)
     project = ProjectSummarySerializer(read_only=True)
     
@@ -208,9 +268,14 @@ class RejectProposalClientSerializer(serializers.ModelSerializer):
         model = Proposal
         fields = ['id', 'freelancer', 'project', 'updated_at', 'status']
         read_only_fields = ['id', 'freelancer', 'project', 'status', 'updated_at']
-   
+
 
 class ListProposalsFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for freelancers listing proposals they have submitted.
+
+    Includes project summary and proposal lifecycle metadata.
+    """
     project = ProjectSummarySerializer(read_only=True)
 
     class Meta:
@@ -219,6 +284,11 @@ class ListProposalsFreelancerSerializer(serializers.ModelSerializer):
 
 
 class RetrieveUpdateProposalFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for freelancers viewing/updating their proposals (where editable).
+
+    Enforces non-negative updates for bid amount and delivery days while keeping immutable fields read-only.
+    """
     project = ProjectSummarySerializer(read_only=True)
 
     class Meta:
@@ -250,6 +320,11 @@ class RetrieveUpdateProposalFreelancerSerializer(serializers.ModelSerializer):
 
 
 class WithdrawProposalFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer presenting minimal data when freelancers view withdrawn proposals.
+
+    All fields are read-only to emphasize historical state.
+    """
     project = serializers.StringRelatedField()
     class Meta:
         model = Proposal
@@ -258,6 +333,11 @@ class WithdrawProposalFreelancerSerializer(serializers.ModelSerializer):
 
 
 class ListProjectProposalsAdminSerializer(serializers.ModelSerializer):
+    """
+    Serializer for administrators auditing proposals across projects.
+
+    Combines project, freelancer, and bidding details for oversight tasks.
+    """
     project = ProjectSummarySerializer(read_only=True)
     freelancer = UserSerializer(read_only=True)
 
@@ -267,6 +347,11 @@ class ListProjectProposalsAdminSerializer(serializers.ModelSerializer):
 
 
 class CreateMilestoneClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients creating project milestones.
+
+    Validates project context, permissions, and project status prior to creation.
+    """
     class Meta:
         model = Milestone
         fields = ['title', 'description', 'amount', 'due_date']
@@ -288,12 +373,22 @@ class CreateMilestoneClientSerializer(serializers.ModelSerializer):
 
 
 class ListProjectMilestonesClientFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing milestones to both clients and freelancers.
+
+    Details milestone progress, payment flags, and timeline metadata.
+    """
     class Meta:
         model = Milestone
         fields = ['id', 'project', 'title', 'description', 'amount', 'status', 'submitted_at', 'approved_at', 'rejected_reason', 'due_date', 'is_paid']
 
 
 class SubmitMilestoneFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer enabling freelancers to submit work for milestone review.
+
+    Ensures only pending milestones can transition to submitted status.
+    """
     class Meta:
         model = Milestone
         fields = ['status']
@@ -309,6 +404,11 @@ class SubmitMilestoneFreelancerSerializer(serializers.ModelSerializer):
     
 
 class RetrieveUpdateDeleteMilestoneClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients to review or update pending milestones.
+
+    Keeps submission/audit metadata read-only while permitting scope edits prior to approval.
+    """
     project = ProjectSummarySerializer(read_only=True)
 
     class Meta:
@@ -330,6 +430,11 @@ class RetrieveUpdateDeleteMilestoneClientSerializer(serializers.ModelSerializer)
 
 
 class RetrieveMilestoneFreelancerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for freelancers viewing milestone details and status history.
+
+    All fields read-only to reflect authoritative milestone records.
+    """
     project = ProjectSummarySerializer(read_only=True)
 
     class Meta:
@@ -339,6 +444,11 @@ class RetrieveMilestoneFreelancerSerializer(serializers.ModelSerializer):
     
 
 class ApproveMilestoneClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients approving submitted milestones.
+
+    Updates status and timestamp upon validation.
+    """
     class Meta:
         model = Milestone
         fields = ['status']
@@ -356,6 +466,9 @@ class ApproveMilestoneClientSerializer(serializers.ModelSerializer):
 
 
 class RejectMilestoneClientSerializer(serializers.ModelSerializer):
+    """
+    Serializer for clients rejecting submitted milestones with a mandatory reason.
+    """
     class Meta:
         model = Milestone
         fields = ['status', 'rejected_reason']
@@ -374,6 +487,11 @@ class RejectMilestoneClientSerializer(serializers.ModelSerializer):
 
 
 class CreateReviewSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating project reviews (client ↔ freelancer).
+
+    Validates project completion status, review window, and duplicate submissions.
+    """
     class Meta:
         model = Review
         fields = ['project', 'review_type', 'rating', 'communication', 'quality', 'professionalism', 'comment', 'private_comment']
@@ -406,6 +524,9 @@ class CreateReviewSerializer(serializers.ModelSerializer):
 
 
 class RetrieveProjectReviewSerializer(serializers.ModelSerializer):
+    """
+    Serializer rendering submitted reviews with human-readable relations.
+    """
     reviewer = serializers.StringRelatedField()
     reviewee = serializers.StringRelatedField()
     project = serializers.StringRelatedField()
@@ -417,6 +538,11 @@ class RetrieveProjectReviewSerializer(serializers.ModelSerializer):
 
 
 class UpdateProjectReviewSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating reviews within the allowed edit window.
+
+    Allows adjusting ratings and comments while enforcing the deadline constraint.
+    """
     class Meta:
         model = Review
         fields = [
