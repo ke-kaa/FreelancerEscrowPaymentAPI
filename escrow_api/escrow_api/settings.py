@@ -31,7 +31,10 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'animalistically-overboastful-lavenia.ngrok-free.dev',
+    "*"
+]
 
 
 # Application definition
@@ -54,6 +57,7 @@ INSTALLED_APPS = [
     'django_filters',
     'user_projects',
     'auditlog',
+    'celery',
 ]
 
 MIDDLEWARE = [
@@ -162,8 +166,8 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_BLACKLIST_ENABLED': True,
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1)
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1000),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7)
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  
@@ -174,3 +178,12 @@ EMAIL_USE_SSL = False  # Use SSL encryption (set to True or False). Only one of 
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')  # Your email address for sending
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD') # Your email password or app-specific password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # The default sender email address
+
+PLATFORM_COMMISSION_RATE = 0.10
+
+# Stripe conf
+STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY')
+STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+STRIPE_CURRENCY = env('STRIPE_CURRENCY', default='usd')
+STRIPE_COUNTRY = env('STRIPE_COUNTRY', default='US')

@@ -51,7 +51,7 @@ class ChapaProvider(BasePaymentProvider):
                 "return_url": self.return_url,
                 "customization": {
                     "title": "Escrow Fund",
-                    "description": f"Funding escrow for project - {kwargs.get('project_title', 'Unknown Project')}"
+                    "description": f"Funding escrow for project" # - {kwargs.get('project_title', 'Unknown Project')}"
                 }
             }
             
@@ -73,7 +73,11 @@ class ChapaProvider(BasePaymentProvider):
             return data
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Chapa API request failed: {str(e)}")
+            logger.error(f"Chapa API request failed: {str(e)}", exc_info=True)
+            try:
+                logger.error(f"Chapa API response content: {response.content}")
+            except Exception:
+                pass
             return {
                 'status': 'error',
                 'message': 'Payment initiation failed',

@@ -1,14 +1,12 @@
 import stripe
-import requests
-import json
-import environ
-import os
 import logging
+
 from .base import BasePaymentProvider
 from django.conf import settings
 import uuid
-import http.client
-from typing import Dict, Any, Optional
+from typing import Dict
+
+from payments.models import Payment
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +44,7 @@ class StripeProvider(BasePaymentProvider):
             intent = stripe.PaymentIntent.create(
                 amount=amount_cents,
                 currency=self.currency,
-                customer_email=user.email,
+                receipt_email=user.email,
                 metadata={
                     'user_id': str(user.id),
                     'user_email': user.email,
@@ -66,7 +64,7 @@ class StripeProvider(BasePaymentProvider):
                 'status': 'success',
                 'payment_intent_id': intent.id,
                 'client_secret': intent.client_secret,
-                'tx_ref': intent.metadata.get('tx_ref'),
+                'tx_ref': intent.id,
                 'provider': 'stripe',
                 'data': {
                     'checkout_url': f"/payment/stripe/{intent.id}",  # Frontend URL
@@ -88,15 +86,6 @@ class StripeProvider(BasePaymentProvider):
                 'message': 'Payment initiation failed',
                 'error': str(e)
             }
-    
-    
-        """Handle transfer created webhook"""
-        # return {
-        #     'status': 'success',
-        #     'message': 'Transfer created',
-        #     'transfer_id': event_data.get('id'),
-        #     'amount': event_data.get('amount')
-        # }
 
     def verify(self, provider_transaction_id):
         """
@@ -234,6 +223,7 @@ class StripeProvider(BasePaymentProvider):
             amount_cents = int(amount * 100)
             
             # Create transfer to connected account
+            transfer_reference = f'freelancer-payment-{uuid.uuid4().hex[:10]}'
             transfer = stripe.Transfer.create(
                 amount=amount_cents,
                 currency=self.currency,
@@ -242,7 +232,7 @@ class StripeProvider(BasePaymentProvider):
                     'freelancer_id': str(recipient.get('user_id', '')),
                     'project_title': kwargs.get('project_title', ''),
                     'escrow_payout': 'true',
-                    'transfer_reference': f'freelancer-payment-{uuid.uuid4().hex[:10]}'
+                    'transfer_reference': transfer_reference
                 },
                 description=f"Payment for project: {kwargs.get('project_title', 'Unknown Project')}"
             )
@@ -252,8 +242,10 @@ class StripeProvider(BasePaymentProvider):
             return {
                 'status': 'success',
                 'transfer_id': transfer.id,
+                'reference': transfer.id,
                 'amount': str(amount),
                 'recipient': recipient.get('account_name', 'Connected Account'),
+                'transfer_reference': transfer_reference,
                 'message': 'Transfer completed successfully'
             }
             
@@ -306,18 +298,21 @@ class StripeProvider(BasePaymentProvider):
             Dict containing processing result
         """
         try:
+            event_id = payload.get('id')
             event_type = payload.get('type')
             event_data = payload.get('data', {}).get('object', {})
             
             logger.info(f"Processing Stripe webhook: {event_type}")
             
             if event_type == 'payment_intent.succeeded':
-                return self._handle_payment_success(event_data)
+                return self._handle_payment_success(event_id, event_data)
             elif event_type == 'payment_intent.payment_failed':
-                return self._handle_payment_failure(event_data)
+                return self._handle_payment_failure(event_id, event_data)
             elif event_type == 'transfer.created':
-                return self._handle_transfer_created(event_data)
+                return self._handle_transfer_created(event_id, event_data)
             else:
+                if event_id:
+                    self._mark_event_processed(event_id)
                 return {
                     'status': 'processed',
                     'message': f'Webhook {event_type} processed',
@@ -331,12 +326,10 @@ class StripeProvider(BasePaymentProvider):
                 'message': str(e)
             }
     
-    def _handle_payment_success(self, event_data):
+    def _handle_payment_success(self, event_id: str | None, event_data: Dict):
         """Handle payment success with database updates"""
         try:
             payment_intent_id = event_data.get('id')
-            amount = event_data.get('amount')
-            metadata = event_data.get('metadata', {})
             
             # Find the corresponding Payment record
             payment = Payment.objects.filter(
@@ -379,4 +372,57 @@ class StripeProvider(BasePaymentProvider):
                 'status': 'error',
                 'message': str(e)
             }
-       
+
+    def _handle_payment_failure(self, event_id: str | None, event_data: Dict):
+        """Handle failed payment intents."""
+        try:
+            payment_intent_id = event_data.get('id')
+            payment = Payment.objects.filter(
+                provider_transactionn_id=payment_intent_id,
+                provider='stripe',
+            ).first()
+
+            if payment and payment.status != 'failed':
+                payment.status = 'failed'
+                payment.save(update_fields=['status'])
+
+            self._mark_event_processed(event_id)
+
+            return {
+                'status': 'failed',
+                'message': 'Payment intent failed',
+                'payment_id': payment.id if payment else None,
+            }
+        except Exception as e:
+            logger.error(f"Error handling payment failure: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e),
+            }
+
+    def _handle_transfer_created(self, event_id: str | None, event_data: Dict):
+        """Handle transfer confirmation webhooks."""
+        try:
+            transfer_id = event_data.get('id')
+            amount = event_data.get('amount')
+            currency = event_data.get('currency')
+
+            self._mark_event_processed(event_id)
+
+            return {
+                'status': 'success',
+                'message': 'Transfer webhook processed',
+                'transfer_id': transfer_id,
+                'amount': amount,
+                'currency': currency,
+            }
+        except Exception as e:
+            logger.error(f"Error handling transfer created event: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e),
+            }
+
+    def _mark_event_processed(self, event_id: str | None):
+        if event_id:
+            logger.debug("Stripe webhook processed", extra={'event_id': event_id})

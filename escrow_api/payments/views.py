@@ -6,7 +6,6 @@ import logging
 
 from .serializers import (
     PaymentSerializer,
-    EscrowTransactionSerializer,
     FundingInitiateSerializer,
     FundingVerifySerializer,
     ReleaseFundsSerializer,
@@ -25,6 +24,7 @@ from escrow.services import EscrowService
 from user_projects.models import UserProject
 from .providers import get_payment_provider
 from .tasks import task_transfer_to_freelancer, task_refund_to_client
+from .permissions import IsOwnerClient
 
 
 logger = logging.getLogger(__name__)
@@ -32,10 +32,10 @@ logger = logging.getLogger(__name__)
 class InitiateFundingView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request):
-        serializer = FundingInitiateSerializer(data=request.data)
+    def post(self, request, project_id):
+        serializer = FundingInitiateSerializer(data=request.data, context={"request": request, "project_id": project_id})
         serializer.is_valid(raise_exception=True)
-        project = get_object_or_404(UserProject, id=serializer.validated_data['project_id'])
+        project = get_object_or_404(UserProject, id=project_id)
         escrow_service = EscrowService()
         result = escrow_service.initiate_funding(
             user=request.user,
@@ -79,7 +79,6 @@ class ReleaseFundsView(APIView):
         result = {'status': 'success', 'message': 'Payout queued'}
         code = status.HTTP_200_OK if result.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
         return Response(result, status=code)
-
 
 
 class RefundView(APIView):

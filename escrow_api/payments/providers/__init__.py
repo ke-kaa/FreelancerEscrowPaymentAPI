@@ -1,5 +1,6 @@
 from .base import BasePaymentProvider
 from .chapa import ChapaProvider
+from .stripe import StripeProvider
 
 def get_payment_provider(provider_name: str, **kwargs) -> BasePaymentProvider:
     """
@@ -14,7 +15,7 @@ def get_payment_provider(provider_name: str, **kwargs) -> BasePaymentProvider:
     """
     providers = {
         'chapa': ChapaProvider,
-        # other providers ...
+        'stripe': StripeProvider,
     }
     
     if provider_name not in providers:
