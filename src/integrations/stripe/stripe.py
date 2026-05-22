@@ -1,0 +1,428 @@
+import stripe
+import logging
+
+from .base import BasePaymentProvider
+from django.conf import settings
+import uuid
+from typing import Dict
+
+from apps.payments.models import Payment
+
+logger = logging.getLogger(__name__)
+
+class StripeProvider(BasePaymentProvider):
+    """
+    Stripe payment provider implementation for escrow system.
+    Handles payments, refunds, and transfers to freelancers.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        self.publishable_key = settings.STRIPE_PUBLISHABLE_KEY
+        self.currency = getattr(settings, 'STRIPE_CURRENCY', 'usd')
+        self.country = getattr(settings, 'STRIPE_COUNTRY', 'US')
+        self.webhook_secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', '')
+
+    def charge(self, user, amount, **kwargs):
+        """
+        Create a Stripe Payment Intent for escrow funding.
+        
+        Args:
+            user: User object making the payment
+            amount: Amount to charge (Decimal)
+            **kwargs: Additional parameters
+            
+        Returns:
+            Dict containing payment initiation response
+        """
+        try:
+            # Convert amount to cents (Stripe uses smallest currency unit)
+            amount_cents = int(amount * 100)
+            
+            # Create Payment Intent
+            intent = stripe.PaymentIntent.create(
+                amount=amount_cents,
+                currency=self.currency,
+                receipt_email=user.email,
+                metadata={
+                    'user_id': str(user.id),
+                    'user_email': user.email,
+                    'project_title': kwargs.get('project_title', 'Unknown Project'),
+                    'escrow_funding': 'true',
+                    'tx_ref': f'escrow-fund-{uuid.uuid4().hex[:10]}'
+                },
+                description=f"Escrow funding for {kwargs.get('project_title', 'project')}",
+                automatic_payment_methods={
+                    'enabled': True,
+                },
+            )
+            
+            logger.info(f"Stripe Payment Intent created: {intent.id} for user {user.email}, amount: {amount}")
+            
+            return {
+                'status': 'success',
+                'payment_intent_id': intent.id,
+                'client_secret': intent.client_secret,
+                'tx_ref': intent.id,
+                'provider': 'stripe',
+                'data': {
+                    'checkout_url': f"/payment/stripe/{intent.id}",  # Frontend URL
+                    'client_secret': intent.client_secret
+                }
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error in charge: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Payment initiation failed',
+                'error': str(e)
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error in Stripe charge: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Payment initiation failed',
+                'error': str(e)
+            }
+
+    def verify(self, provider_transaction_id):
+        """
+        Verify a Stripe Payment Intent.
+        
+        Args:
+            provider_transaction_id: Payment Intent ID
+            
+        Returns:
+            bool: True if payment is successful
+        """
+        try:
+            intent = stripe.PaymentIntent.retrieve(provider_transaction_id)
+            
+            is_successful = intent.status == 'succeeded'
+            
+            logger.info(f"Stripe payment verification result: {is_successful} for intent {provider_transaction_id}")
+            return is_successful
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe verification error: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error in Stripe verify: {str(e)}")
+            return False
+
+    def refund(self, provider_transaction_id, amount, reason = "Project refund"):
+        """
+        Process a Stripe refund.
+        
+        Args:
+            provider_transaction_id: Payment Intent ID
+            amount: Amount to refund (if None, full refund)
+            reason: Reason for refund
+            
+        Returns:
+            Dict containing refund response
+        """
+        try:
+            # Get the Payment Intent to find the charge
+            intent = stripe.PaymentIntent.retrieve(provider_transaction_id)
+            
+            if intent.status != 'succeeded':
+                return {
+                    'status': 'error',
+                    'message': 'Cannot refund unsuccessful payment',
+                    'error': 'Payment was not successful'
+                }
+            
+            # Get the charge ID
+            charge_id = intent.latest_charge
+            if not charge_id:
+                return {
+                    'status': 'error',
+                    'message': 'No charge found for this payment intent'
+                }
+            
+            # Prepare refund parameters
+            refund_params = {
+                'charge': charge_id,
+                'metadata': {
+                    'reason': reason,
+                    'escrow_refund': 'true',
+                    'original_intent': provider_transaction_id
+                }
+            }
+            
+            # Add amount if specified
+            if amount:
+                refund_params['amount'] = int(amount * 100)  # Convert to cents
+            
+            # Create refund
+            refund = stripe.Refund.create(**refund_params)
+            
+            logger.info(f"Stripe refund created: {refund.id} for intent {provider_transaction_id}")
+            
+            return {
+                'status': 'success',
+                'refund_id': refund.id,
+                'amount': str(amount) if amount else 'full',
+                'original_intent': provider_transaction_id,
+                'provider': 'stripe'
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe refund error: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Refund failed',
+                'error': str(e)
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error in Stripe refund: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Refund processing failed',
+                'error': str(e)
+            }
+
+    def get_payment_status(self, provider_transaction_id):
+        """
+        Get payment status from Stripe.
+        
+        Args:
+            provider_transaction_id: Payment Intent ID
+            
+        Returns:
+            str: Payment status
+        """
+        try:
+            intent = stripe.PaymentIntent.retrieve(provider_transaction_id)
+            return intent.status
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Error getting Stripe payment status: {str(e)}")
+            return 'error'
+        except Exception as e:
+            logger.error(f"Unexpected error getting payment status: {str(e)}")
+            return 'error'
+
+    def transfer_to_account(self, recipient, amount , **kwargs):
+        """
+        Transfer funds to freelancer's account via Stripe Connect.
+        
+        Args:
+            recipient: Dict containing recipient account details
+            amount: Amount to transfer
+            **kwargs: Additional parameters
+            
+        Returns:
+            Dict containing transfer response
+        """
+        try:
+            # Convert amount to cents
+            amount_cents = int(amount * 100)
+            
+            # Create transfer to connected account
+            transfer_reference = f'freelancer-payment-{uuid.uuid4().hex[:10]}'
+            transfer = stripe.Transfer.create(
+                amount=amount_cents,
+                currency=self.currency,
+                destination=recipient['stripe_account_id'],
+                metadata={
+                    'freelancer_id': str(recipient.get('user_id', '')),
+                    'project_title': kwargs.get('project_title', ''),
+                    'escrow_payout': 'true',
+                    'transfer_reference': transfer_reference
+                },
+                description=f"Payment for project: {kwargs.get('project_title', 'Unknown Project')}"
+            )
+            
+            logger.info(f"Stripe transfer created: {transfer.id} to account {recipient['stripe_account_id']}")
+            
+            return {
+                'status': 'success',
+                'transfer_id': transfer.id,
+                'reference': transfer.id,
+                'amount': str(amount),
+                'recipient': recipient.get('account_name', 'Connected Account'),
+                'transfer_reference': transfer_reference,
+                'message': 'Transfer completed successfully'
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe transfer error: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Transfer failed',
+                'error': str(e)
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error in Stripe transfer: {str(e)}")
+            return {
+                'status': 'error',
+                'message': 'Transfer processing failed',
+                'error': str(e)
+            }
+    
+    def validate_webhook(self, payload, signature):
+        """
+        Validate Stripe webhook signature.
+        
+        Args:
+            payload: Raw webhook payload
+            signature: Stripe signature header
+            
+        Returns:
+            bool: True if webhook is valid
+        """
+        try:
+            stripe.Webhook.construct_event(
+                payload, signature, self.webhook_secret
+            )
+            return True
+        except ValueError:
+            logger.error("Invalid Stripe webhook payload")
+            return False
+        except stripe.error.SignatureVerificationError:
+            logger.error("Invalid Stripe webhook signature")
+            return False
+    
+    def process_webhook(self, payload):
+        """
+        Process Stripe webhook payload.
+        
+        Args:
+            payload: Parsed webhook payload
+            
+        Returns:
+            Dict containing processing result
+        """
+        try:
+            event_id = payload.get('id')
+            event_type = payload.get('type')
+            event_data = payload.get('data', {}).get('object', {})
+            
+            logger.info(f"Processing Stripe webhook: {event_type}")
+            
+            if event_type == 'payment_intent.succeeded':
+                return self._handle_payment_success(event_id, event_data)
+            elif event_type == 'payment_intent.payment_failed':
+                return self._handle_payment_failure(event_id, event_data)
+            elif event_type == 'transfer.created':
+                return self._handle_transfer_created(event_id, event_data)
+            else:
+                if event_id:
+                    self._mark_event_processed(event_id)
+                return {
+                    'status': 'processed',
+                    'message': f'Webhook {event_type} processed',
+                    'event_type': event_type
+                }
+                
+        except Exception as e:
+            logger.error(f"Error processing Stripe webhook: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
+    
+    def _handle_payment_success(self, event_id: str | None, event_data: Dict):
+        """Handle payment success with database updates"""
+        try:
+            payment_intent_id = event_data.get('id')
+            
+            # Find the corresponding Payment record
+            payment = Payment.objects.filter(
+                provider_transactionn_id=payment_intent_id,
+                provider='stripe'
+            ).first()
+            
+            if not payment:
+                logger.warning(f"Payment not found for intent {payment_intent_id}")
+                return {
+                    'status': 'warning',
+                    'message': 'Payment record not found'
+                }
+            
+            # Update payment status
+            payment.status = 'completed'
+            payment.save()
+            
+            # Update escrow if this is a funding payment
+            if payment.transaction_type == 'funding':
+                escrow = payment.escrow
+                escrow.funded_amount = payment.amount
+                escrow.current_balance = payment.amount
+                escrow.status = 'funded'
+                escrow.save()
+            
+            # Mark event as processed
+            self._mark_event_processed(event_id)
+            
+            return {
+                'status': 'success',
+                'message': 'Payment processed successfully',
+                'payment_id': payment.id,
+                'escrow_id': payment.escrow.id if payment.escrow else None
+            }
+            
+        except Exception as e:
+            logger.error(f"Error handling payment success: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
+
+    def _handle_payment_failure(self, event_id: str | None, event_data: Dict):
+        """Handle failed payment intents."""
+        try:
+            payment_intent_id = event_data.get('id')
+            payment = Payment.objects.filter(
+                provider_transactionn_id=payment_intent_id,
+                provider='stripe',
+            ).first()
+
+            if payment and payment.status != 'failed':
+                payment.status = 'failed'
+                payment.save(update_fields=['status'])
+
+            self._mark_event_processed(event_id)
+
+            return {
+                'status': 'failed',
+                'message': 'Payment intent failed',
+                'payment_id': payment.id if payment else None,
+            }
+        except Exception as e:
+            logger.error(f"Error handling payment failure: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e),
+            }
+
+    def _handle_transfer_created(self, event_id: str | None, event_data: Dict):
+        """Handle transfer confirmation webhooks."""
+        try:
+            transfer_id = event_data.get('id')
+            amount = event_data.get('amount')
+            currency = event_data.get('currency')
+
+            self._mark_event_processed(event_id)
+
+            return {
+                'status': 'success',
+                'message': 'Transfer webhook processed',
+                'transfer_id': transfer_id,
+                'amount': amount,
+                'currency': currency,
+            }
+        except Exception as e:
+            logger.error(f"Error handling transfer created event: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e),
+            }
+
+    def _mark_event_processed(self, event_id: str | None):
+        if event_id:
+            logger.debug("Stripe webhook processed", extra={'event_id': event_id})

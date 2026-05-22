@@ -1,0 +1,2 @@
+from apps.accounts.models import CustomUser
+from apps.accounts.models import CustomUser
