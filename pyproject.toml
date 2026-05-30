@@ -1,25 +1,43 @@
 [project]
 name = "freelancerescrowpaymentbackend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Escrow-based freelancer payment backend."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "country-list>=1.1.0",
+    # Framework
     "django>=6.0.5",
-    "django-auditlog>=3.4.1",
-    "django-environ>=0.13.0",
-    "django-filter>=25.2",
     "djangorestframework>=3.17.1",
     "djangorestframework-simplejwt>=5.5.1",
+    "django-filter>=25.2",
+    "django-cors-headers>=4.4.0",
+    "django-auditlog>=3.4.1",
+    "django-environ>=0.13.0",
     "drf-yasg>=1.21.15",
-    "requests>=2.34.2",
+    # Database / cache / broker client
+    "psycopg[binary]>=3.3.4",
+    "redis>=5.0.0",
+    "celery>=5.6.3",
+    # Domain libs
+    "country-list>=1.1.0",
     "stripe>=15.1.0",
+    "requests>=2.34.2",
 ]
 
 [dependency-groups]
+development = [
+    "pytest>=8.3.0",
+    "pytest-django>=4.9.0",
+    "pytest-cov>=5.0.0",
+    "factory-boy>=3.3.0",
+    "responses>=0.25.0",
+    "ruff>=0.7.0",
+    "mypy>=1.11.0",
+    "ipython>=8.27.0",
+]
 production = [
-    "celery>=5.6.3",
-    "psycopg>=3.3.4",
-    "uvicorn>=0.47.0",
+    "gunicorn>=23.0.0",
+    "uvicorn[standard]>=0.47.0",
+    "sentry-sdk>=2.14.0",
+    "django-storages[s3]>=1.14.4",
 ]
