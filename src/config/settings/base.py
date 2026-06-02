@@ -142,7 +142,7 @@ REST_FRAMEWORK = {
         "user": "20/hour",
         "email": "30/hour",
     },
-    # EXCEPTION_HANDLER wired once common/exception/handler.py is implemented.
+    "EXCEPTION_HANDLER": "common.exception.handler.custom_exception_handler",
 }
 
 
