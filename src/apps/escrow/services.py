@@ -8,6 +8,7 @@ from django.db import transaction
 from apps.disputes.models import Dispute
 from apps.payments.models import Payment
 from apps.payments.services import PaymentService
+from common.exception.domain import ProviderError
 
 from .models import EscrowTransaction
 
@@ -39,39 +40,33 @@ class EscrowService:
                     is_locked=False,
                 )
 
-                init = self.payment_service.init_charge(
-                    user=user,
-                    amount=amount,
-                    provider_name=provider_name,
-                    project_title=getattr(project, 'title', ''),
-                    **kwargs,
-                )
-
-                if init.get('status') != 'success':
-                    raise ValueError(init.get('message') or 'Payment initialization failed')
-
-                # Resolve provider transaction id across providers
-                tx_ref = init.get('tx_ref') or init.get('payment_intent_id') or init.get('id')
-                if not tx_ref:
-                    raise ValueError('Missing provider transaction reference')
+                try:
+                    init = self.payment_service.init_charge(
+                        user=user,
+                        amount=amount,
+                        provider_name=provider_name,
+                        description=f"Escrow funding for {getattr(project, 'title', '')}",
+                    )
+                except ProviderError as exc:
+                    raise ValueError(exc.message) from exc
 
                 Payment.objects.create(
                     escrow=escrow,
                     user=user,
                     amount=amount,
-                    provider_transactionn_id=tx_ref,
+                    provider_transactionn_id=init.tx_ref,
                     transaction_type='funding',
-                    provider=provider_name or init.get('provider') or '',
+                    provider=init.provider,
                     status='pending',
                 )
 
                 return {
                     'status': 'success',
-                    'payment_url': (init.get('data') or {}).get('checkout_url'),
-                    'client_secret': (init.get('data') or {}).get('client_secret'),
-                    'tx_ref': tx_ref,
+                    'payment_url': init.checkout_url,
+                    'client_secret': init.client_secret,
+                    'tx_ref': init.tx_ref,
                     'escrow_id': escrow.id,
-                    'provider': provider_name or init.get('provider'),
+                    'provider': init.provider,
                     'total_amount': str(amount),
                     'commission_rate': str(settings.PLATFORM_COMMISSION_RATE),
                     'commission_amount': str(commission_amount),
@@ -89,11 +84,14 @@ class EscrowService:
                     transaction_type='funding',
                 )
                 provider_name = payment.provider
-                verified = self.payment_service.verify_payment(
-                    provider_name=provider_name,
-                    provider_transaction_id=tx_ref,
-                )
-                if not verified:
+                try:
+                    verify_result = self.payment_service.verify_payment(
+                        provider_name=provider_name,
+                        provider_transaction_id=tx_ref,
+                    )
+                except ProviderError as exc:
+                    return {"status": "error", "message": exc.message}
+                if not verify_result.succeeded:
                     return {"status": "error", "message": "Payment verification failed"}
 
                 escrow = payment.escrow
@@ -184,27 +182,22 @@ class EscrowService:
             if not resolved_provider:
                 return {"status": "error", "message": "No provider available for payout"}
 
-            transfer_result = self.payment_service.transfer_to_freelancer(
-                freelancer=escrow.project.freelancer,
-                amount=freelancer_amount,
-                provider_name=resolved_provider,
-                project_title=getattr(escrow.project, 'title', ''),
-            )
-
-            if transfer_result.get("status") != "success":
+            try:
+                transfer_result = self.payment_service.transfer_to_freelancer(
+                    freelancer=escrow.project.freelancer,
+                    amount=freelancer_amount,
+                    provider_name=resolved_provider,
+                    description=f"Payout for {getattr(escrow.project, 'title', '')}",
+                )
+            except ProviderError as exc:
                 return {
-                    "status": transfer_result.get("status", "error"),
-                    "message": transfer_result.get("message", "Transfer initiation failed"),
+                    "status": "error",
+                    "message": exc.message,
                     "provider": resolved_provider,
-                    "transfer_result": transfer_result,
+                    "details": exc.details,
                 }
 
-            transfer_reference = (
-                transfer_result.get('reference')
-                or transfer_result.get('transfer_id')
-                or transfer_result.get('tx_ref')
-                or f'escrow-release-{uuid.uuid4().hex[:10]}'
-            )
+            transfer_reference = transfer_result.reference or transfer_result.transfer_id or f'escrow-release-{uuid.uuid4().hex[:10]}'
 
             with transaction.atomic():
                 payout_payment = Payment.objects.create(
@@ -376,20 +369,21 @@ class EscrowService:
                 if refund_amount <= 0:
                     return {"status": "error", "message": "No available balance to refund"}
 
-                result = self.payment_service.refund(
-                    provider_name=provider,
-                    provider_transaction_id=provider_tx_id,
-                    amount=refund_amount,
-                    reason=reason,
-                )
-                if result.get('status') != 'success':
-                    return {"status": "error", "message": result.get('message', 'Refund failed')}
+                try:
+                    refund_dto = self.payment_service.refund(
+                        provider_name=provider,
+                        provider_transaction_id=provider_tx_id,
+                        amount=refund_amount,
+                        reason=reason,
+                    )
+                except ProviderError as exc:
+                    return {"status": "error", "message": exc.message}
 
                 Payment.objects.create(
                     escrow=escrow,
                     user=escrow.project.client,
                     amount=refund_amount,
-                    provider_transactionn_id=result.get('refund_id') or f'refund-{provider_tx_id}',
+                    provider_transactionn_id=refund_dto.refund_id or f'refund-{provider_tx_id}',
                     transaction_type='refund',
                     provider=provider,
                     status='completed',

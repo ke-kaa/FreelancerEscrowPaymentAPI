@@ -9,7 +9,8 @@ from apps.escrow.models import EscrowTransaction
 from apps.escrow.serializers import EscrowTransactionSerializer
 from apps.escrow.services import EscrowService
 from apps.projects.models import UserProject
-from integrations import get_payment_provider
+from common.exception.domain import ProviderError
+from integrations import get_gateway
 
 from .models import Payment, PayoutMethod, WebhookEvent
 from .serializers import (
@@ -158,25 +159,27 @@ class ChapaBanksView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        provider = get_payment_provider('chapa')
-        res = provider.get_banks()
-        if res.get('status') == 'success':
-            return Response({'banks': res.get('banks', [])})
-        return Response(res, status=status.HTTP_400_BAD_REQUEST)
+        gateway = get_gateway('chapa')
+        try:
+            banks = gateway.list_banks()
+        except ProviderError as exc:
+            return Response(exc.to_dict(), status=exc.http_status)
+        return Response({'banks': banks})
 
 
 class StripeOnboardingLinkView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        from integrations.stripe.stripe import StripeProvider
         account_id = request.data.get('stripe_account_id')
-        provider = StripeProvider()
         if not account_id:
             return Response({'detail': 'stripe_account_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-        link = provider.get_account_link(account_id)
-        code = status.HTTP_200_OK if link.get('status') == 'success' else status.HTTP_400_BAD_REQUEST
-        return Response(link, status=code)
+        gateway = get_gateway('stripe')
+        try:
+            link = gateway.create_account_link(account_id)
+        except ProviderError as exc:
+            return Response(exc.to_dict(), status=exc.http_status)
+        return Response(link, status=status.HTTP_200_OK)
 
 
 class StripeWebhookView(APIView):

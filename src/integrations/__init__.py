@@ -1,25 +1,35 @@
-from .base.base import BasePaymentProvider
-from .chapa.chapa import ChapaProvider
-from .stripe.stripe import StripeProvider
+"""
+Payment gateway registry.
+
+Resolves provider name → `PaymentGateway` instance using
+`settings.PAYMENT_GATEWAYS = {name: "dotted.path.to.adapter.Class"}`.
+"""
+
+from __future__ import annotations
+
+from importlib import import_module
+
+from django.conf import settings
+
+from common.patterns.ports import PaymentGateway
 
 
-def get_payment_provider(provider_name: str, **kwargs) -> BasePaymentProvider:
+def get_gateway(name: str) -> PaymentGateway:
     """
-    Factory function to get payment provider instances.
-    
     Args:
-        provider_name: Name of the payment provider
-        **kwargs: Additional configuration
-        
-    Returns:
-        BasePaymentProvider: Payment provider instance
+        name: Provider name, e.g. "stripe" or "chapa".
+
+    Raises:
+        ValueError: name not in `PAYMENT_GATEWAYS` setting.
+        ImportError: dotted path invalid.
     """
-    providers = {
-        'chapa': ChapaProvider,
-        'stripe': StripeProvider,
-    }
-    
-    if provider_name not in providers:
-        raise ValueError(f"Unknown payment provider: {provider_name}")
-    
-    return providers[provider_name](**kwargs)
+    mapping = getattr(settings, "PAYMENT_GATEWAYS", {})
+    if name not in mapping:
+        raise ValueError(f"Unknown payment gateway: {name!r}")
+    dotted = mapping[name]
+    module_path, class_name = dotted.rsplit(".", 1)
+    cls = getattr(import_module(module_path), class_name)
+    return cls()
+
+
+__all__ = ["get_gateway", "PaymentGateway"]
