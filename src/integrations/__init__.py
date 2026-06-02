@@ -1,6 +1,7 @@
-from base.base import BasePaymentProvider
-from chapa.chapa import ChapaProvider
-from .stripe import StripeProvider
+from .base.base import BasePaymentProvider
+from .chapa.chapa import ChapaProvider
+from .stripe.stripe import StripeProvider
+
 
 def get_payment_provider(provider_name: str, **kwargs) -> BasePaymentProvider:
     """

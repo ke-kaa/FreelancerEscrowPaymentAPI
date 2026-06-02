@@ -1,8 +1,8 @@
 from django.db import models
 
-
-from apps.projects.models import UserProject
 from apps.accounts.models import CustomUser
+from apps.projects.models import UserProject
+
 
 class Dispute(models.Model):
     STATUS_CHOICES = (

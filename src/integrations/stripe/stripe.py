@@ -1,12 +1,12 @@
-import stripe
 import logging
-
-from .base import BasePaymentProvider
-from django.conf import settings
 import uuid
 from typing import Dict
 
+import stripe
+from django.conf import settings
+
 from apps.payments.models import Payment
+from integrations.base.base import BasePaymentProvider
 
 logger = logging.getLogger(__name__)
 

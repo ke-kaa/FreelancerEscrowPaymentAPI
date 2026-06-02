@@ -2,8 +2,9 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import EscrowTransaction
 from apps.payments.models import Payment
+
+from .models import EscrowTransaction
 
 
 class PaymentSummarySerializer(serializers.ModelSerializer):

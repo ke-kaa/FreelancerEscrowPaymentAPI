@@ -41,3 +41,34 @@ production = [
     "sentry-sdk>=2.14.0",
     "django-storages[s3]>=1.14.4",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    ".venv",
+    "migrations",
+    "staticfiles",
+    "media",
+]
+
+[tool.ruff.lint]
+# Phase 0 tripwire — minimum set. Tighten ("B", "UP", "S", "DJ") per phase
+# as legacy files get rewritten. Migration plan tracks expansion.
+select = [
+    "F",   # pyflakes — unused imports, undefined names (real bugs)
+    "E9",  # pycodestyle syntax errors
+    "I",   # isort
+]
+ignore = [
+    "F841",  # unused local var — legacy noise; re-enable after Phase 10 cleanup
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "common", "config", "integrations", "services"]
+
+[tool.pytest.ini_options]
+# Settings live in pytest.ini — keep this section empty to avoid drift.

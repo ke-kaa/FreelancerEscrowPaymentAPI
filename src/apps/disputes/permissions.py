@@ -1,5 +1,7 @@
 from rest_framework.permissions import BasePermission
+
 from .models import Dispute
+
 
 class IsModerator(BasePermission):
     """

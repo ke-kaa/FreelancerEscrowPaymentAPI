@@ -1,14 +1,10 @@
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from django.db import transaction
 from django.utils.timezone import timedelta
+from rest_framework import serializers
 
-
-from .utils import send_proposal_accept_email
-from .models import UserProject, Proposal, Milestone, Review
 from .constants import REVIEW_UPDATE_WINDOW_DAYS
-
+from .models import Milestone, Proposal, Review, UserProject
 
 User = get_user_model()
 

@@ -1,6 +1,5 @@
 from django.db import models
 
-
 from apps.projects.models import UserProject
 
 

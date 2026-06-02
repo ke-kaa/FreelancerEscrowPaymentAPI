@@ -1,20 +1,26 @@
-from django.shortcuts import render
-from rest_framework_simplejwt import views as jwt_views, tokens, authentication
-from rest_framework import views as drf_Views, generics, permissions, status
 from django.db import transaction
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import generics, permissions, status
+from rest_framework import views as drf_Views
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+from rest_framework_simplejwt import authentication, tokens
+from rest_framework_simplejwt import views as jwt_views
 
-
-from . import serializers as my_serializers
-from .utils import send_reset_email, generate_password_reset_link, send_reactivation_email, generate_reactivation_link
-from . import models as my_models, throttles
-from .pagination import UserListPagination
+from . import models as my_models
 from . import permissions as my_permissions
+from . import serializers as my_serializers
+from . import throttles
+from .pagination import UserListPagination
+from .utils import (
+    generate_password_reset_link,
+    generate_reactivation_link,
+    send_reactivation_email,
+    send_reset_email,
+)
 
 
 class CustomTokenObtainPairView(jwt_views.TokenObtainPairView):

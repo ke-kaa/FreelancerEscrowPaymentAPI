@@ -1,7 +1,7 @@
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
+
 from apps.escrow.models import EscrowTransaction
-from django.core.exceptions import ValidationError
 from apps.projects.models import Milestone
 
 User = get_user_model()

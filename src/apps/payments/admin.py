@@ -1,11 +1,12 @@
 from django.contrib import admin
+
 from .models import (
+    Bank,
+    ChapaPayoutMethod,
     Payment,
     PaymentMethod,
     PayoutMethod,
-    ChapaPayoutMethod,
     StripePayoutMethod,
-    Bank,
     WebhookEvent,
 )
 

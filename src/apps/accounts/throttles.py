@@ -1,5 +1,6 @@
 from rest_framework.throttling import SimpleRateThrottle
 
+
 class EmailRateThrottle(SimpleRateThrottle):
     scope = 'email'
     

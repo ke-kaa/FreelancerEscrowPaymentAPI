@@ -1,17 +1,18 @@
 from django.urls import path
+
 from .views import (
-    InitiateFundingView,
-    VerifyFundingView,
-    ReleaseFundsView,
-    RefundView,
+    ChapaBanksView,
+    ChapaWebhookView,
     EscrowDetailView,
     EscrowPaymentsView,
-    PayoutMethodListCreateView,
+    InitiateFundingView,
     PayoutMethodDetailView,
-    ChapaBanksView,
+    PayoutMethodListCreateView,
+    RefundView,
+    ReleaseFundsView,
     StripeOnboardingLinkView,
     StripeWebhookView,
-    ChapaWebhookView,
+    VerifyFundingView,
 )
 
 urlpatterns = [

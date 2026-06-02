@@ -1,8 +1,8 @@
-from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin, UserManager
-from country_list import countries_for_language
-from auditlog.registry import auditlog
 from auditlog.models import AuditlogHistoryField
+from auditlog.registry import auditlog
+from country_list import countries_for_language
+from django.contrib.auth.models import AbstractUser, BaseUserManager, UserManager
+from django.db import models
 
 
 class CustomUserManager(BaseUserManager):

@@ -1,12 +1,12 @@
-import requests
-import json
-import environ
-import os
 import logging
-from .base import BasePaymentProvider
-from django.conf import settings
+import os
 import uuid
-import http.client
+
+import environ
+import requests
+from django.conf import settings
+
+from integrations.base.base import BasePaymentProvider
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class ChapaProvider(BasePaymentProvider):
                 "return_url": self.return_url,
                 "customization": {
                     "title": "Escrow Fund",
-                    "description": f"Funding escrow for project" # - {kwargs.get('project_title', 'Unknown Project')}"
+                    "description": "Funding escrow for project" # - {kwargs.get('project_title', 'Unknown Project')}"
                 }
             }
             
@@ -339,7 +339,7 @@ class ChapaProvider(BasePaymentProvider):
             return {
                 'status': 'success',
                 'transfer_data': data.get('data', {}),
-                'status': data.get('data', {}).get('status', 'unknown')
+                'transfer_status': data.get('data', {}).get('status', 'unknown')
             }
             
         except Exception as e:

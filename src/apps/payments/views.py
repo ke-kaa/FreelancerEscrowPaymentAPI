@@ -1,31 +1,31 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from django.shortcuts import get_object_or_404
 import logging
 
-from .serializers import (
-    PaymentSerializer,
-    FundingInitiateSerializer,
-    FundingVerifySerializer,
-    ReleaseFundsSerializer,
-    RefundSerializer,
-    PayoutMethodSerializer,
-    ChapaPayoutMethodCreateSerializer,
-    StripePayoutMethodCreateSerializer,
-    SetPayoutMethodFlagsSerializer,
-    BankSerializer,
-    ChapaWebhookSerializer,
-    StripeWebhookSerializer,
-)
-from .models import Payment, PayoutMethod, Bank, WebhookEvent
+from django.shortcuts import get_object_or_404
+from rest_framework import permissions, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from apps.escrow.models import EscrowTransaction
+from apps.escrow.serializers import EscrowTransactionSerializer
 from apps.escrow.services import EscrowService
 from apps.projects.models import UserProject
-from .providers import get_payment_provider
-from .tasks import task_transfer_to_freelancer, task_refund_to_client
-from .permissions import IsOwnerClient
+from integrations import get_payment_provider
 
+from .models import Payment, PayoutMethod, WebhookEvent
+from .serializers import (
+    ChapaPayoutMethodCreateSerializer,
+    ChapaWebhookSerializer,
+    FundingInitiateSerializer,
+    FundingVerifySerializer,
+    PaymentSerializer,
+    PayoutMethodSerializer,
+    RefundSerializer,
+    ReleaseFundsSerializer,
+    SetPayoutMethodFlagsSerializer,
+    StripePayoutMethodCreateSerializer,
+    StripeWebhookSerializer,
+)
+from .tasks import task_refund_to_client, task_transfer_to_freelancer
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +169,7 @@ class StripeOnboardingLinkView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        from .providers.stripe import StripeProvider
+        from integrations.stripe.stripe import StripeProvider
         account_id = request.data.get('stripe_account_id')
         provider = StripeProvider()
         if not account_id:

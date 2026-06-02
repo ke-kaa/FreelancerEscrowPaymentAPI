@@ -9,3 +9,20 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# Logs
+*.log
+log.txt
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+staticfiles/
+media/
+
+# IDE
+.idea/
+.vscode/

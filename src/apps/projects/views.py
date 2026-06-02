@@ -1,23 +1,28 @@
-from django.shortcuts import render
-from rest_framework import views as drf_views, generics, permissions, status, filters
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import filters, generics, permissions, status
+from rest_framework import views as drf_views
+from rest_framework.filters import OrderingFilter
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from django.shortcuts import get_object_or_404
-from django.core.exceptions import PermissionDenied, ValidationError
-from rest_framework.filters import SearchFilter, OrderingFilter
-from django.db import transaction
-from django.utils import timezone
-from decimal import Decimal
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
+from apps.escrow.services import EscrowService
 
 from . import serializers as my_serializers
-from .permissions import IsClient, IsFreelancer, IsOwner, IsClientOrAssignedFreelancer, IsOwnerFreelancer
+from .models import Milestone, Proposal, Review, UserProject
+from .permissions import (
+    IsClient,
+    IsClientOrAssignedFreelancer,
+    IsFreelancer,
+    IsOwner,
+    IsOwnerFreelancer,
+)
 from .utils import send_proposal_accept_email
-from .models import UserProject, Milestone, Review, Proposal
-from apps.escrow.services import EscrowService
 
 
 class CreateProjectClientAPIView(generics.CreateAPIView):

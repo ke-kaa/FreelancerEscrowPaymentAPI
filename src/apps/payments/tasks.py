@@ -1,11 +1,10 @@
-from celery import shared_task
 import logging
 
-from django.db import transaction
+from celery import shared_task
 from django.contrib.auth import get_user_model
 
-from apps.escrow.services import EscrowService
 from apps.escrow.models import EscrowTransaction
+from apps.escrow.services import EscrowService
 from apps.projects.models import Milestone
 
 logger = logging.getLogger(__name__)

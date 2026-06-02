@@ -1,11 +1,8 @@
-from django.db import transaction
-from django.core.exceptions import ObjectDoesNotExist
-from .providers import get_payment_provider
-from .models import Payment, PayoutMethod, StripePayoutMethod, ChapaPayoutMethod
-from apps.escrow.models import EscrowTransaction
-from apps.projects.models import UserProject
 import logging
-from django.conf import settings
+
+from integrations import get_payment_provider
+
+from .models import PayoutMethod
 
 logger = logging.getLogger(__name__)
 

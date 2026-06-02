@@ -1,21 +1,22 @@
-from rest_framework import generics, permissions, status, filters
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import filters, generics, permissions, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
-from django.core.exceptions import PermissionDenied
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+
+from apps.escrow.models import EscrowTransaction
+from apps.projects.models import UserProject
+from apps.projects.permissions import IsClientOrAssignedFreelancer, IsOwner
 
 from . import serializers as my_serializers
-from apps.projects.permissions import IsClientOrAssignedFreelancer, IsOwner
-from apps.projects.models import UserProject
-from .permissions import IsModerator, IsDisputeParticipantOrModerator, IsDisputeOwner
-from .models import Dispute, DisputeMessage
-from apps.escrow.models import EscrowTransaction
+from .models import Dispute
+from .permissions import IsDisputeOwner, IsDisputeParticipantOrModerator, IsModerator
 
 
 class CreateDisputeAPIView(generics.CreateAPIView):

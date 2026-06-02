@@ -1,12 +1,15 @@
-from django.db import transaction
+import logging
+import uuid
 from decimal import Decimal
-from .models import EscrowTransaction
+
+from django.conf import settings
+from django.db import transaction
+
+from apps.disputes.models import Dispute
 from apps.payments.models import Payment
 from apps.payments.services import PaymentService
-from apps.disputes.models import Dispute
-import logging
-from django.conf import settings
-import uuid
+
+from .models import EscrowTransaction
 
 logger = logging.getLogger(__name__)
 

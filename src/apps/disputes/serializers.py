@@ -1,9 +1,10 @@
-from rest_framework import serializers
 from django.db import transaction
 from django.utils import timezone
+from rest_framework import serializers
 
-from .models import Dispute, DisputeMessage
 from apps.escrow.models import EscrowTransaction
+
+from .models import Dispute
 
 
 class DisputeCreateSerializer(serializers.ModelSerializer):

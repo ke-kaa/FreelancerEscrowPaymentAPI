@@ -1,11 +1,11 @@
-from rest_framework import serializers
-from django.db import transaction
-from decimal import Decimal
 import uuid
 
-from .models import Payment, PayoutMethod, ChapaPayoutMethod, StripePayoutMethod, Bank
+from django.db import transaction
+from rest_framework import serializers
+
 from apps.projects.models import UserProject
-from apps.escrow.models import EscrowTransaction
+
+from .models import Bank, ChapaPayoutMethod, Payment, PayoutMethod, StripePayoutMethod
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -69,7 +69,7 @@ class ChapaPayoutMethodCreateSerializer(serializers.Serializer):
         user = self.context['request'].user
         account_number = attrs.get('account_number')
         bank_code = attrs.get('bank_code')
-        from .models import PayoutMethod, ChapaPayoutMethod
+        from .models import ChapaPayoutMethod
         existing = ChapaPayoutMethod.objects.filter(
         payout_method__user=user,
         account_number=account_number,
@@ -95,7 +95,7 @@ class StripePayoutMethodCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         user = self.context['request'].user
         stripe_account_id = attrs.get('stripe_account_id')
-        from .models import PayoutMethod, StripePayoutMethod
+        from .models import StripePayoutMethod
         existing = StripePayoutMethod.objects.filter(
             payout_method__user=user,
             stripe_account_id=stripe_account_id,
