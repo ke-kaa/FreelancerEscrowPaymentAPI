@@ -13,13 +13,13 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   DJANGO_SETTINGS_MODULE: config.settings.testing
-  # Test DB — provided by the postgres service below
   DATABASE_URL: postgres://postgres:postgres@localhost:5432/escrow_test
   SECRET_KEY: ci-secret-key-not-for-production
   DEBUG: "True"
   ALLOWED_HOSTS: "*"
   CORS_ALLOWED_ORIGINS: ""
   CSRF_TRUSTED_ORIGINS: ""
+  CHAPA_WEBHOOK_SECRET: ci-chapa-secret
 
 jobs:
   lint:
@@ -27,18 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
-
       - name: Install dev dependencies
         run: uv sync --group development --frozen
-
       - name: Ruff check
         run: uv run ruff check .
 
@@ -61,23 +56,18 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
-
       - name: Install dev dependencies
         run: uv sync --group development --frozen
-
       - name: manage.py check
         run: uv run python manage.py check
 
-  smoke:
-    name: Smoke tests (pytest)
+  tests:
+    name: Tests (unit + integration + e2e)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -95,17 +85,63 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
-
       - name: Install dev dependencies
         run: uv sync --group development --frozen
+      - name: Run all tests with coverage
+        # Coverage threshold currently calibrated to the financial-critical
+        # surface that has dedicated tests (webhooks ingress + handlers,
+        # state machine, escrow lifecycle e2e). Escrow + payments services
+        # coverage will climb once the service-layer test suite expands;
+        # bump --cov-fail-under as that happens.
+        run: |
+          uv run pytest tests/ \
+            --cov=apps.escrow.services \
+            --cov=apps.payments.services \
+            --cov=apps.webhooks \
+            --cov-report=term-missing \
+            --cov-fail-under=50
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: .coverage
+          if-no-files-found: ignore
 
-      - name: Run smoke tests
-        run: uv run pytest tests/smoke/ -v
+  race-test:
+    name: Race tests (10x repeat)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: escrow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+      - name: Install dev dependencies
+        run: uv sync --group development --frozen
+      - name: Repeat race tests 10 times to detect flake
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            echo "=== run $i ==="
+            uv run pytest tests/integration/test_race_release.py -q || exit 1
+          done

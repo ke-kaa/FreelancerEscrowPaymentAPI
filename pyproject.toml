@@ -73,3 +73,26 @@ known-first-party = ["apps", "common", "config", "integrations", "services"]
 
 [tool.pytest.ini_options]
 # Settings live in pytest.ini — keep this section empty to avoid drift.
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/__init__.py",
+    "src/manage.py",
+    "src/config/asgi.py",
+    "src/config/wsgi.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

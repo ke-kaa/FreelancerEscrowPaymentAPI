@@ -408,7 +408,13 @@ class EscrowService:
         success: bool,
         details: dict,
     ):
-        payment = Payment.objects.select_for_update().select_related("milestone").get(id=payment_id)
+        # of=("self",) restricts the row lock to Payment; without it Postgres
+        # refuses FOR UPDATE across the nullable milestone outer join.
+        payment = (
+            Payment.objects.select_for_update(of=("self",))
+            .select_related("milestone")
+            .get(id=payment_id)
+        )
         commission_payment = (
             Payment.objects.select_for_update()
             .filter(
