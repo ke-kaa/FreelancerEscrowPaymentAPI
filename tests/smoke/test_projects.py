@@ -4,8 +4,8 @@ import pytest
 
 pytestmark = [pytest.mark.smoke, pytest.mark.django_db]
 
-CREATE_PROJECT_URL = "/projects/client/create/"
-LIST_CLIENT_PROJECTS_URL = "/projects/client/list/"
+CREATE_PROJECT_URL = "/api/v1/projects/client/create/"
+LIST_CLIENT_PROJECTS_URL = "/api/v1/projects/client/list/"
 
 
 def _project_payload():

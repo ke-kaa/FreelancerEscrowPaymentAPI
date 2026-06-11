@@ -8,7 +8,7 @@ import pytest
 
 pytestmark = [pytest.mark.smoke, pytest.mark.django_db]
 
-PAYOUT_METHODS_URL = "/payments/payout-methods/"
+PAYOUT_METHODS_URL = "/api/v1/payments/payout-methods/"
 STRIPE_WEBHOOK_URL = "/webhooks/stripe/"
 CHAPA_WEBHOOK_URL = "/webhooks/chapa/"
 

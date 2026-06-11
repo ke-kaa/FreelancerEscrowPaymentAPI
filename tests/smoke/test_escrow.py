@@ -8,7 +8,7 @@ import pytest
 
 pytestmark = [pytest.mark.smoke, pytest.mark.django_db]
 
-ESCROW_LIST_URL = "/escrow/"
+ESCROW_LIST_URL = "/api/v1/escrow/"
 
 
 def test_escrow_list_requires_auth(api_client):

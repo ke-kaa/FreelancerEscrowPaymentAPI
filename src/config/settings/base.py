@@ -50,6 +50,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "corsheaders",
     "drf_yasg",
+    "drf_spectacular",
     "auditlog",
 ]
 
@@ -145,6 +146,16 @@ REST_FRAMEWORK = {
         "email": "30/hour",
     },
     "EXCEPTION_HANDLER": "common.exception.handler.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Freelancer Escrow API",
+    "DESCRIPTION": "Escrow-based freelancer payment platform.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/v1",
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 

@@ -4,9 +4,9 @@ import pytest
 
 pytestmark = [pytest.mark.smoke, pytest.mark.django_db]
 
-REGISTER_URL = "/api/account/register/"
-TOKEN_URL = "/api/account/token/"
-REFRESH_URL = "/api/account/token/refresh/"
+REGISTER_URL = "/api/v1/account/register/"
+TOKEN_URL = "/api/v1/account/token/"
+REFRESH_URL = "/api/v1/account/token/refresh/"
 
 
 def _register_payload(email="smoke_user@example.com"):

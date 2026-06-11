@@ -178,7 +178,7 @@ class RetrieveProjectAdminSeriailzer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProject
-        fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'comission_rate', 'status', 'created_at', 'updated_at', 'is_public']
+        fields = ['id', 'client', 'freelancer', 'title', 'description', 'amount', 'commission_rate', 'status', 'created_at', 'updated_at', 'is_public']
 
 
 class CreateProposalFreelancerSerializer(serializers.ModelSerializer):

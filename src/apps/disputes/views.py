@@ -168,7 +168,7 @@ class ModeratorUpdateDisputeAPIView(generics.UpdateAPIView):
         return Response(response_serializer.data)
 
 
-class UpdateDeleteDisputeAPIView(generics.UpdateDestroyAPIView):
+class UpdateDeleteDisputeAPIView(generics.RetrieveUpdateDestroyAPIView):
     """
     Allows the user who raised a dispute to update or delete it,
     but only if the dispute is still 'open'.
