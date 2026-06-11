@@ -55,10 +55,12 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "apps.accounts",
+    "apps.audit",
     "apps.disputes",
     "apps.escrow",
     "apps.payments",
     "apps.projects",
+    "apps.webhooks",
     "apps.api",
 ]
 

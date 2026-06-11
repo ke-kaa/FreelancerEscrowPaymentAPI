@@ -1,3 +1,4 @@
+from auditlog.registry import auditlog
 from django.contrib.auth import get_user_model
 from django.db import models
 
@@ -144,3 +145,7 @@ class WebhookEvent(models.Model):
 
     def __str__(self):
         return f"{self.provider}:{self.event_id}"
+
+
+# Row-level audit history (complements apps.audit.TransactionLog).
+auditlog.register(Payment)

@@ -9,8 +9,8 @@ import pytest
 pytestmark = [pytest.mark.smoke, pytest.mark.django_db]
 
 PAYOUT_METHODS_URL = "/payments/payout-methods/"
-STRIPE_WEBHOOK_URL = "/payments/webhooks/stripe/"
-CHAPA_WEBHOOK_URL = "/payments/webhooks/chapa/"
+STRIPE_WEBHOOK_URL = "/webhooks/stripe/"
+CHAPA_WEBHOOK_URL = "/webhooks/chapa/"
 
 
 def test_payout_methods_requires_auth(api_client):

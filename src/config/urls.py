@@ -20,6 +20,7 @@ urlpatterns = [
     path('escrow/', include('apps.escrow.urls')),
     path('projects/', include('apps.projects.urls')),
     path('payments/', include('apps.payments.urls')),
+    path('webhooks/', include('apps.webhooks.urls')),
 
 
     # swagger/openapi routes

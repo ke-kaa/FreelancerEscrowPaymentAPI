@@ -1,3 +1,4 @@
+from auditlog.registry import auditlog
 from django.db import models
 
 from apps.projects.models import UserProject
@@ -25,4 +26,7 @@ class EscrowTransaction(models.Model):
 
     def __str__(self):
         return f"Escrow for {self.project.title} ({self.funded_amount})"
+
+
+auditlog.register(EscrowTransaction)
 

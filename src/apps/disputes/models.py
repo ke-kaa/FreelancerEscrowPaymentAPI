@@ -1,3 +1,4 @@
+from auditlog.registry import auditlog
 from django.db import models
 
 from apps.accounts.models import CustomUser
@@ -43,3 +44,6 @@ class DisputeMessage(models.Model):
     sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+auditlog.register(Dispute)

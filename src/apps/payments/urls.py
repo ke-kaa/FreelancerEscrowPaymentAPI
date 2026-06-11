@@ -2,7 +2,6 @@ from django.urls import path
 
 from .views import (
     ChapaBanksView,
-    ChapaWebhookView,
     EscrowDetailView,
     EscrowPaymentsView,
     InitiateFundingView,
@@ -11,7 +10,6 @@ from .views import (
     RefundView,
     ReleaseFundsView,
     StripeOnboardingLinkView,
-    StripeWebhookView,
     VerifyFundingView,
 )
 
@@ -29,8 +27,5 @@ urlpatterns = [
     path('providers/chapa/banks/', ChapaBanksView.as_view()),
     path('providers/stripe/onboarding-link/', StripeOnboardingLinkView.as_view()),
 
-    # webhooks
-    path('webhooks/stripe/', StripeWebhookView.as_view()),
-    path('webhooks/chapa/', ChapaWebhookView.as_view()),
+    # Webhook ingress moved to apps.webhooks (Phase 6) — mounted at /webhooks/<provider>/.
 ]
-
