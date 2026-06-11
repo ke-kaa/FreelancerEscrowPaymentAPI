@@ -7,7 +7,6 @@ from .models import (
     PaymentMethod,
     PayoutMethod,
     StripePayoutMethod,
-    WebhookEvent,
 )
 
 
@@ -15,7 +14,7 @@ from .models import (
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ('id', 'escrow', 'user', 'amount', 'provider', 'transaction_type', 'status', 'timestamp')
     list_filter = ('provider', 'transaction_type', 'status')
-    search_fields = ('provider_transactionn_id', 'user__email')
+    search_fields = ('provider_transaction_id', 'user__email')
 
 
 @admin.register(PaymentMethod)
@@ -51,8 +50,4 @@ class BankAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name')
 
 
-@admin.register(WebhookEvent)
-class WebhookEventAdmin(admin.ModelAdmin):
-    list_display = ('provider', 'event_id', 'received_at')
-    list_filter = ('provider',)
-    search_fields = ('event_id',)
+# WebhookEvent moved to apps.webhooks; admin lives there now.

@@ -41,7 +41,7 @@ def _seeded_escrow():
     PaymentFactory(
         escrow=escrow,
         amount=Decimal("1000.00"),
-        provider_transactionn_id="seed-funding-tx",
+        provider_transaction_id="seed-funding-tx",
         transaction_type="funding",
         provider="stripe",
         status="completed",
@@ -175,7 +175,7 @@ class TestVerifyFundingIdempotency:
         PaymentFactory(
             escrow=escrow,
             amount=Decimal("500.00"),
-            provider_transactionn_id="idem-tx-1",
+            provider_transaction_id="idem-tx-1",
             transaction_type="funding",
             provider="stripe",
             status="pending",

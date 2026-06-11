@@ -17,7 +17,7 @@ class PaymentSummarySerializer(serializers.ModelSerializer):
             "transaction_type",
             "amount",
             "provider",
-            "provider_transactionn_id",
+            "provider_transaction_id",
             "milestone_id",
             "status",
             "timestamp",

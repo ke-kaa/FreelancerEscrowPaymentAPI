@@ -63,7 +63,7 @@ class ConcurrentReleaseTests(TransactionTestCase):
             escrow=escrow,
             user=client,
             amount=Decimal("100.00"),
-            provider_transactionn_id="seed-funding-tx",
+            provider_transaction_id="seed-funding-tx",
             transaction_type="funding",
             provider="stripe",
             status="completed",

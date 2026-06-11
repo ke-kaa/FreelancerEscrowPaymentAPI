@@ -26,7 +26,7 @@ def handle_stripe_event(event_type: str, data: dict[str, Any]) -> dict[str, Any]
     if event_type == "payment_intent.payment_failed":
         intent_id = data.get("id")
         payment = Payment.objects.filter(
-            provider_transactionn_id=intent_id, provider="stripe"
+            provider_transaction_id=intent_id, provider="stripe"
         ).first()
         if payment and payment.status != "failed":
             payment.status = "failed"

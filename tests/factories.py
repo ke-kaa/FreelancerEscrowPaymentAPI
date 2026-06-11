@@ -97,7 +97,7 @@ class PaymentFactory(DjangoModelFactory):
     escrow = factory.SubFactory(EscrowTransactionFactory)
     user = factory.SubFactory(ClientUserFactory)
     amount = Decimal("1000.00")
-    provider_transactionn_id = factory.Sequence(lambda n: f"tx-{n}")
+    provider_transaction_id = factory.Sequence(lambda n: f"tx-{n}")
     transaction_type = "funding"
     provider = "stripe"
     status = "completed"

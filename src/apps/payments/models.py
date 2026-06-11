@@ -26,7 +26,7 @@ class Payment(models.Model):
     escrow = models.ForeignKey(EscrowTransaction, on_delete=models.CASCADE, related_name='payments')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_records')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    provider_transactionn_id = models.CharField(max_length=255)
+    provider_transaction_id = models.CharField(max_length=255)
     transaction_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     provider = models.CharField(max_length=50, blank=True) # e.g., 'stripe', 'chapa'
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
@@ -133,18 +133,6 @@ class Bank(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.code})"
-
-
-class WebhookEvent(models.Model):
-    """
-    Stores processed webhook event IDs to ensure idempotency.
-    """
-    provider = models.CharField(max_length=50)
-    event_id = models.CharField(max_length=255, unique=True)
-    received_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.provider}:{self.event_id}"
 
 
 # Row-level audit history (complements apps.audit.TransactionLog).

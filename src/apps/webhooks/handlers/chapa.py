@@ -46,7 +46,7 @@ def handle_chapa_event(event_type: str, data: dict[str, Any]) -> dict[str, Any]:
             return EscrowService().verify_funding(tx_ref=tx_ref)
         if status_value in _FAILURE_STATUSES:
             payment = Payment.objects.filter(
-                provider_transactionn_id=tx_ref, provider="chapa"
+                provider_transaction_id=tx_ref, provider="chapa"
             ).first()
             if payment and payment.status != "failed":
                 payment.status = "failed"

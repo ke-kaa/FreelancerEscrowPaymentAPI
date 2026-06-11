@@ -64,7 +64,7 @@ class EscrowService:
                 return {
                     "status": "success",
                     "message": "Existing pending funding returned",
-                    "tx_ref": existing_payment.provider_transactionn_id,
+                    "tx_ref": existing_payment.provider_transaction_id,
                     "escrow_id": existing.id,
                     "provider": existing_payment.provider,
                     "total_amount": str(existing.funded_amount),
@@ -98,7 +98,7 @@ class EscrowService:
                     escrow=escrow,
                     user=user,
                     amount=amount,
-                    provider_transactionn_id=init.tx_ref,
+                    provider_transaction_id=init.tx_ref,
                     transaction_type="funding",
                     provider=init.provider,
                     status="pending",
@@ -128,7 +128,7 @@ class EscrowService:
         """
         try:
             payment = Payment.objects.select_related("escrow").get(
-                provider_transactionn_id=tx_ref, transaction_type="funding"
+                provider_transaction_id=tx_ref, transaction_type="funding"
             )
         except Payment.DoesNotExist:
             return {"status": "error", "message": "Funding payment not found"}
@@ -228,7 +228,7 @@ class EscrowService:
             or prep["internal_reference"]
         )
         Payment.objects.filter(id=prep["release_payment_id"]).update(
-            provider_transactionn_id=transfer_reference
+            provider_transaction_id=transfer_reference
         )
 
         return {
@@ -298,7 +298,7 @@ class EscrowService:
             escrow=escrow,
             user=escrow.project.freelancer,
             amount=freelancer_amount,
-            provider_transactionn_id=internal_reference,
+            provider_transaction_id=internal_reference,
             transaction_type="release",
             provider=provider,
             status="pending",
@@ -308,7 +308,7 @@ class EscrowService:
             escrow=escrow,
             user=escrow.project.client,
             amount=commission,
-            provider_transactionn_id=f"commission-{release_payment.id}",
+            provider_transaction_id=f"commission-{release_payment.id}",
             transaction_type="commission",
             provider=provider,
             status="pending",
@@ -379,7 +379,7 @@ class EscrowService:
     ):
         try:
             payment = Payment.objects.select_related("escrow").get(
-                provider_transactionn_id=transfer_reference,
+                provider_transaction_id=transfer_reference,
                 transaction_type="release",
                 provider=provider_name,
             )
@@ -421,7 +421,7 @@ class EscrowService:
                 escrow=escrow,
                 transaction_type="commission",
                 provider=payment.provider,
-                provider_transactionn_id=f"commission-{payment.id}",
+                provider_transaction_id=f"commission-{payment.id}",
             )
             .first()
         )
@@ -511,7 +511,7 @@ class EscrowService:
             return {"status": "error", "message": exc.message}
 
         Payment.objects.filter(id=prep["refund_payment_id"]).update(
-            provider_transactionn_id=refund_dto.refund_id or prep["internal_reference"],
+            provider_transaction_id=refund_dto.refund_id or prep["internal_reference"],
             status="completed",
         )
 
@@ -545,7 +545,7 @@ class EscrowService:
             return {"status": "error", "message": "No completed funding to refund from"}
 
         provider = provider_name or funding_payment.provider
-        provider_tx_id = funding_payment.provider_transactionn_id
+        provider_tx_id = funding_payment.provider_transaction_id
 
         refund_amount = (
             Decimal(str(amount)).quantize(Decimal("0.01"))
@@ -562,7 +562,7 @@ class EscrowService:
             escrow=escrow,
             user=escrow.project.client,
             amount=refund_amount,
-            provider_transactionn_id=internal_reference,
+            provider_transaction_id=internal_reference,
             transaction_type="refund",
             provider=provider,
             status="pending",
