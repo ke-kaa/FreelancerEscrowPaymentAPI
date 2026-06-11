@@ -13,6 +13,7 @@ def api():
 
 @pytest.mark.parametrize("legacy,target", [
     ("/api/account/register/", "/api/v1/account/register/"),
+    ("/api/account/", "/api/v1/account/"),
     ("/escrow/", "/api/v1/escrow/"),
     ("/projects/client/list/", "/api/v1/projects/client/list/"),
     ("/payments/payout-methods/", "/api/v1/payments/payout-methods/"),
